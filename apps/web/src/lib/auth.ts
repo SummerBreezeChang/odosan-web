@@ -15,19 +15,30 @@
  *           socialProviders block (the platform injects the OAuth credentials
  *           via env vars when a provider is enabled in project settings).
  */
-import { Pool, neonConfig } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 import { argon2Verify } from 'argon2-wasm-edge';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
 import { verifyPassword } from 'better-auth/crypto';
 import { bearer } from 'better-auth/plugins';
-import ws from 'ws';
 
-neonConfig.webSocketConstructor = ws;
+// AWS Aurora PostgreSQL via RDS Proxy. Pool is cached on globalThis so the
+// kysely adapter inside better-auth reuses connections across warm Fluid
+// Compute invocations instead of opening a new TCP+TLS handshake per request.
+declare global {
+  // eslint-disable-next-line no-var
+  var __odosanAuthPool: Pool | undefined;
+}
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const pool =
+  global.__odosanAuthPool ??
+  (global.__odosanAuthPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 3,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
+  }));
 
 // Origins we accept auth requests from. Include every URL the app may be
 // served under so better-auth's CSRF check doesn't reject legitimate requests

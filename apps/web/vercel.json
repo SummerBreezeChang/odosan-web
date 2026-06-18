@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "npm install --no-package-lock --legacy-peer-deps",
+  "installCommand": "mv ../../package.json /tmp/__odosan_root_pkg.bak 2>/dev/null; mv ../../yarn.lock /tmp/__odosan_root_lock.bak 2>/dev/null; npm install --no-package-lock --legacy-peer-deps",
   "buildCommand": "npm run build"
 }

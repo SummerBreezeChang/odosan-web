@@ -1,0 +1,597 @@
+'use client';
+
+import { useState } from 'react';
+import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+
+type Step = 'intake' | 'diagnosing' | 'result' | 'matches' | 'consent' | 'done';
+
+type Severity = 'urgent' | 'soon' | 'monitor';
+
+type DiagnosisResult = {
+  issue: string;
+  severity: Severity;
+  recommendedCategory: string;
+  scopeOfWork: string;
+  fairPriceRange: string;
+  diyOrPro: 'diy' | 'pro';
+  explanation: string;
+};
+
+type Provider = {
+  provider_id: string;
+  name: string;
+  category: string;
+  phone: string;
+  website?: string;
+  google_maps_url?: string;
+  rating?: number;
+};
+
+const categories = [
+  { id: 'plumbing_drainage', label: 'Plumbing & Drainage' },
+  { id: 'gutters_drainage', label: 'Gutters & Drainage' },
+  { id: 'landscaping', label: 'Landscaping & Yard' },
+  { id: 'roofing', label: 'Roofing' },
+  { id: 'electrical', label: 'Electrical' },
+  { id: 'hvac', label: 'HVAC' },
+  { id: 'pest_control', label: 'Pest Control' },
+  { id: 'handyman', label: 'Handyman' },
+  { id: 'painting', label: 'Painting' },
+];
+
+const neighborhoods = [
+  'Berkeley',
+  'North Oakland / Rockridge',
+  'Albany',
+  'El Cerrito',
+  'Kensington',
+  'Piedmont',
+  'Emeryville',
+  'Alameda',
+];
+
+const severityConfig: Record<Severity, { icon: any; color: string; label: string }> = {
+  urgent: { icon: AlertCircle, color: 'text-red-600', label: 'Urgent' },
+  soon: { icon: Clock, color: 'text-orange-600', label: 'Soon' },
+  monitor: { icon: CheckCircle2, color: 'text-gray-600', label: 'Monitor' },
+};
+
+export default function Home() {
+  const [step, setStep] = useState<Step>('intake');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [neighborhood, setNeighborhood] = useState<string>('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const stripExifAndResize = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        reject(new Error('Browser environment required'));
+        return;
+      }
+
+      const img = new window.Image();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      img.onload = () => {
+        const maxWidth = 1200;
+        const maxHeight = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          } else {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to process image'));
+          },
+          'image/jpeg',
+          0.85
+        );
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      console.error('Browser environment required for image processing');
+      return;
+    }
+
+    try {
+      const strippedBlob = await stripExifAndResize(file);
+      const strippedFile = new File([strippedBlob], file.name, { type: 'image/jpeg' });
+      setPhotoFile(strippedFile);
+      setPhotoPreview(URL.createObjectURL(strippedFile));
+    } catch (error) {
+      console.error('Error processing image:', error);
+    }
+  };
+
+  const handleDiagnose = async () => {
+    if (!selectedCategory || !neighborhood) return;
+
+    setIsSubmitting(true);
+    setStep('diagnosing');
+
+    try {
+      const formData = new FormData();
+      formData.append('category', selectedCategory);
+      formData.append('description', description);
+      formData.append('neighborhood', neighborhood);
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
+
+      const response = await fetch('/api/diagnose', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Diagnosis failed');
+      }
+
+      const result: DiagnosisResult = await response.json();
+      setDiagnosis(result);
+
+      // Fetch matched providers
+      const providersResponse = await fetch(
+        `/api/providers?category=${result.recommendedCategory}&neighborhood=${encodeURIComponent(neighborhood)}`
+      );
+      const providersData = await providersResponse.json();
+      setProviders(providersData.providers || []);
+
+      setStep('result');
+    } catch (error) {
+      console.error('Error during diagnosis:', error);
+      alert('Failed to diagnose. Please try again.');
+      setStep('intake');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleViewMatches = () => {
+    setStep('matches');
+  };
+
+  const handleSelectProvider = (providerId: string) => {
+    setSelectedProvider(providerId);
+    setStep('consent');
+  };
+
+  const handleConnect = async () => {
+    setIsSubmitting(true);
+    try {
+      // Create lead with provider connection
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: diagnosis?.recommendedCategory,
+          problem: diagnosis?.issue,
+          scope: diagnosis?.scopeOfWork,
+          fair_price_range: diagnosis?.fairPriceRange,
+          severity: diagnosis?.severity,
+          neighborhood,
+          chosen_provider_id: selectedProvider,
+        }),
+      });
+
+      if (response.ok) {
+        setStep('done');
+      }
+    } catch (error) {
+      console.error('Error connecting:', error);
+      alert('Failed to connect. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStartOver = () => {
+    setStep('intake');
+    setSelectedCategory('');
+    setDescription('');
+    setNeighborhood('');
+    setPhotoFile(null);
+    setPhotoPreview('');
+    setDiagnosis(null);
+    setProviders([]);
+    setSelectedProvider('');
+  };
+
+  if (step === 'diagnosing') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div
+            className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full mx-auto mb-6"
+            style={{ animation: 'spin 1s linear infinite' }}
+          />
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Diagnosing your issue...</h2>
+          <p className="text-sm text-gray-500">This should take just a moment.</p>
+        </div>
+        <style jsx global>{`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (step === 'result' && diagnosis) {
+    const SeverityIcon = severityConfig[diagnosis.severity].icon;
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="max-w-2xl mx-auto p-6 py-12">
+          <div className="mb-8">
+            <h1 className="text-4xl font-semibold text-gray-900 mb-2 tracking-tight">Diagnosis</h1>
+            <p className="text-sm text-gray-500">Here's what we found</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <div className="flex items-start gap-4 mb-4">
+              <div className={`mt-1 ${severityConfig[diagnosis.severity].color}`}>
+                <SeverityIcon className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-lg font-semibold text-gray-900">{diagnosis.issue}</h2>
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-full border border-gray-200 ${severityConfig[diagnosis.severity].color}`}
+                  >
+                    {severityConfig[diagnosis.severity].label}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">{diagnosis.explanation}</p>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 space-y-3">
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Scope of work</div>
+                <div className="text-sm text-gray-900">{diagnosis.scopeOfWork}</div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Fair price range</div>
+                <div className="text-sm text-gray-900 font-semibold">
+                  {diagnosis.fairPriceRange}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Recommendation</div>
+                <div className="text-sm text-gray-900">
+                  {diagnosis.diyOrPro === 'diy'
+                    ? 'You may be able to DIY this'
+                    : 'Hire a professional'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleViewMatches}
+            className="w-full bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+          >
+            View matched providers
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'matches') {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="max-w-2xl mx-auto p-6 py-12">
+          <div className="mb-8">
+            <h1 className="text-4xl font-semibold text-gray-900 mb-2 tracking-tight">
+              Matched providers
+            </h1>
+            <p className="text-sm text-gray-500">
+              We found {providers.length} vetted {providers.length === 1 ? 'pro' : 'pros'} in{' '}
+              {neighborhood}
+            </p>
+          </div>
+
+          {providers.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <p className="text-sm text-gray-600 mb-4">
+                No providers found in your area for this category.
+              </p>
+              <button
+                onClick={handleStartOver}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                Start over
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {providers.map((provider) => (
+                <div
+                  key={provider.provider_id}
+                  className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 transition-colors"
+                >
+                  <div className="mb-4">
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">{provider.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">{provider.category}</span>
+                      {provider.rating && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-xs text-gray-700">★ {provider.rating}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {provider.google_maps_url && (
+                    <a
+                      href={provider.google_maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:text-blue-700 mb-4 inline-block"
+                    >
+                      View on Google Maps →
+                    </a>
+                  )}
+
+                  <button
+                    onClick={() => handleSelectProvider(provider.provider_id)}
+                    className="w-full bg-blue-50 text-blue-600 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-100 transition-colors"
+                  >
+                    Connect with {provider.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'consent') {
+    const selectedPro = providers.find((p) => p.provider_id === selectedProvider);
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="max-w-2xl mx-auto p-6 py-12">
+          <div className="mb-8">
+            <h1 className="text-4xl font-semibold text-gray-900 mb-2 tracking-tight">
+              Ready to connect?
+            </h1>
+            <p className="text-sm text-gray-500">
+              We'll share your contact info with this provider
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">What happens next</h3>
+            <div className="space-y-3 text-sm text-gray-600">
+              <div className="flex gap-3">
+                <span className="text-gray-400">-</span>
+                <span>
+                  We'll share your name, address, phone, and this diagnosis with {selectedPro?.name}
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-gray-400">-</span>
+                <span>They'll reach out to schedule a visit and provide a quote</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-gray-400">-</span>
+                <span>You'll work directly with them to complete the job</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-6">
+            <div className="text-xs font-medium text-gray-500 mb-2">CONNECTING WITH</div>
+            <div className="text-base font-semibold text-gray-900">{selectedPro?.name}</div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setStep('matches')}
+              className="flex-1 bg-white border border-gray-200 text-gray-900 rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Go back
+            </button>
+            <button
+              onClick={handleConnect}
+              disabled={isSubmitting}
+              className="flex-1 bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? 'Connecting...' : 'Connect'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'done') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-8 h-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">You're all set!</h2>
+          <p className="text-sm text-gray-600 mb-8">
+            The provider will reach out soon to schedule a visit. Check your phone and email.
+          </p>
+          <button
+            onClick={handleStartOver}
+            className="bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            Diagnose another issue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Intake step
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Hero section */}
+      <div className="bg-gray-50 border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+          <h1 className="text-5xl font-semibold text-gray-900 mb-4 tracking-tight">Odosan</h1>
+          <p className="text-lg text-gray-600 mb-2">
+            Your privacy-first home maintenance concierge
+          </p>
+          <p className="text-sm text-gray-500">
+            AI diagnosis → fair pricing → vetted local pros → you stay anonymous
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto p-6 py-12">
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2 tracking-tight">
+            What needs fixing?
+          </h2>
+          <p className="text-sm text-gray-500">Tell us about the issue and we'll diagnose it</p>
+        </div>
+
+        <div className="space-y-6">
+          {/* Category selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-3">Category</label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-4 py-3 text-sm rounded-lg border transition-colors text-left ${
+                    selectedCategory === cat.id
+                      ? 'border-gray-900 bg-gray-900 text-white font-medium'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Photo upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-3">Photo (optional)</label>
+            {photoPreview ? (
+              <div className="relative">
+                <img
+                  src={photoPreview}
+                  alt="Preview"
+                  className="w-full h-64 object-cover rounded-lg border border-gray-200"
+                />
+                <button
+                  onClick={() => {
+                    setPhotoFile(null);
+                    setPhotoPreview('');
+                  }}
+                  className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-sm border border-gray-200 hover:bg-gray-50"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-200 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <Upload className="w-10 h-10 text-gray-400 mb-3" />
+                  <p className="text-sm text-gray-600 font-medium mb-1">Upload a photo</p>
+                  <p className="text-xs text-gray-500">EXIF data will be removed automatically</p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-3">
+              Description <span className="text-gray-500 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe what's happening..."
+              rows={4}
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+            />
+          </div>
+
+          {/* Neighborhood */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-3">
+              Your neighborhood
+            </label>
+            <select
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+            >
+              <option value="">Select neighborhood</option>
+              {neighborhoods.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={handleDiagnose}
+            disabled={!selectedCategory || !neighborhood || isSubmitting}
+            className="w-full bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            Diagnose
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

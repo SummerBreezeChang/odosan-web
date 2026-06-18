@@ -1,0 +1,43 @@
+import type React from 'react';
+import type { Metadata } from 'next';
+import './global.css';
+import { Providers } from './providers';
+
+export const metadata: Metadata = {
+  title: "Odosan — Your home's dad",
+  description:
+    'Personalized home maintenance guidance for first-time homeowners. AI diagnosis, fair pricing, vetted local pros.',
+  icons: {
+    icon: '/favicon.png',
+  },
+  manifest: '/manifest.json',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@400;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+              }
+            `,
+          }}
+        />
+      </head>
+      <body className="flex min-h-screen flex-col">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

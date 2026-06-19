@@ -1,21 +1,16 @@
-import Link from 'next/link';
-
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-6 py-12">
+    <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
+      <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
         {/* Header */}
-        <div className="mb-12">
-          <Link
-            href="/"
-            className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 mb-6"
+        <div className="mb-10">
+          <h1
+            className="text-4xl font-bold text-od-navy mb-3 tracking-tight sm:text-5xl"
+            style={{ fontFamily: 'var(--font-display)' }}
           >
-            ← Back to home
-          </Link>
-          <h1 className="text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
-            Privacy & security
+            Privacy &amp; security
           </h1>
-          <p className="text-base text-gray-600">You're anonymous until you choose to connect</p>
+          <p className="text-base text-od-muted">You&apos;re anonymous until you choose to connect</p>
         </div>
 
         {/* Progressive disclosure */}

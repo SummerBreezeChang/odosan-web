@@ -60,33 +60,24 @@ export default function ProviderInbox() {
 
   if (loading || !mounted) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full">
-          <style jsx>{`
-            div {
-              animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-              from {
-                transform: rotate(0deg);
-              }
-              to {
-                transform: rotate(360deg);
-              }
-            }
-          `}</style>
-        </div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-od-navy/10 border-t-od-navy" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-6 py-12">
+    <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
+      <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-semibold text-gray-900 mb-3 tracking-tight">Lead inbox</h1>
-          <p className="text-base text-gray-600">
+        <div className="mb-10">
+          <h1
+            className="text-4xl font-bold text-od-navy mb-3 tracking-tight sm:text-5xl"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Lead inbox
+          </h1>
+          <p className="text-base text-od-muted">
             Pre-diagnosed, scoped leads from homeowners in your service area
           </p>
         </div>

@@ -1,7 +1,7 @@
 export default function Support() {
   return (
-    <div className="min-h-screen bg-od-bg">
-      <main className="max-w-3xl mx-auto px-6 py-16">
+    <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
+      <main>
         <h1
           className="font-bold text-4xl text-od-navy mb-4"
           style={{ fontFamily: 'var(--font-display)' }}

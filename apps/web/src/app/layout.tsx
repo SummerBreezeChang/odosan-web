@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './global.css';
 import { Providers } from './providers';
 import { SiteHeader } from '@/components/SiteHeader';
@@ -9,10 +9,32 @@ export const metadata: Metadata = {
   title: "Odosan — Your home's dad",
   description:
     'Personalized home maintenance guidance for first-time homeowners. AI diagnosis, fair pricing, vetted local pros.',
+  applicationName: 'Odosan',
+  appleWebApp: {
+    capable: true,
+    title: 'Odosan',
+    statusBarStyle: 'default',
+  },
   icons: {
     icon: '/favicon.png',
+    apple: '/favicon.png',
+    shortcut: '/favicon.png',
   },
   manifest: '/manifest.json',
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F5F0E8' },
+    { media: '(prefers-color-scheme: dark)', color: '#111827' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

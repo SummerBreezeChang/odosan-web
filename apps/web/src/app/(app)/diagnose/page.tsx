@@ -229,7 +229,7 @@ export default function Home() {
 
   if (step === 'diagnosing') {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div
             className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full mx-auto mb-6"
@@ -255,10 +255,10 @@ export default function Home() {
   if (step === 'result' && diagnosis) {
     const SeverityIcon = severityConfig[diagnosis.severity].icon;
     return (
-      <div className="min-h-screen bg-white">
-        <div className="max-w-2xl mx-auto p-6 py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
           <div className="mb-8">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-2 tracking-tight">Diagnosis</h1>
+            <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>Diagnosis</h1>
             <p className="text-sm text-gray-500">Here's what we found</p>
           </div>
 
@@ -316,10 +316,10 @@ export default function Home() {
 
   if (step === 'matches') {
     return (
-      <div className="min-h-screen bg-white">
-        <div className="max-w-2xl mx-auto p-6 py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
           <div className="mb-8">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-2 tracking-tight">
+            <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>
               Matched providers
             </h1>
             <p className="text-sm text-gray-500">
@@ -389,10 +389,10 @@ export default function Home() {
   if (step === 'consent') {
     const selectedPro = providers.find((p) => p.provider_id === selectedProvider);
     return (
-      <div className="min-h-screen bg-white">
-        <div className="max-w-2xl mx-auto p-6 py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
           <div className="mb-8">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-2 tracking-tight">
+            <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>
               Ready to connect?
             </h1>
             <p className="text-sm text-gray-500">
@@ -447,7 +447,7 @@ export default function Home() {
 
   if (step === 'done') {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-8 h-8 text-green-600" />

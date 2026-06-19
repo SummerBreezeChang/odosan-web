@@ -86,13 +86,13 @@ diyOrPro must be one of: diy, pro`;
         temperature: 0.3,
         topK: 32,
         topP: 1,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
         responseMimeType: 'application/json',
       },
     };
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

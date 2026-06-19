@@ -1,8 +1,21 @@
 // Odosan service worker — app-shell caching for PWA install + offline tolerance.
 // Bump CACHE_VERSION any time you change shell behavior so old clients refresh.
 
-const CACHE_VERSION = 'odosan-v2';
-const SHELL_URLS = ['/', '/diagnose', '/for-providers', '/privacy', '/support', '/favicon.png', '/manifest.json'];
+const CACHE_VERSION = 'odosan-v3';
+const SHELL_URLS = [
+  '/',
+  '/diagnose',
+  '/my-home',
+  '/for-providers',
+  '/territory',
+  '/privacy',
+  '/support',
+  '/favicon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/manifest.json',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

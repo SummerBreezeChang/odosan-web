@@ -2,7 +2,9 @@ import Link from 'next/link';
 
 const FOOTER_LINKS = [
   { href: '/diagnose', label: 'Diagnose' },
+  { href: '/my-home', label: 'My Home' },
   { href: '/for-providers', label: 'For Providers' },
+  { href: '/territory', label: 'Territory' },
   { href: '/privacy', label: 'Privacy' },
   { href: '/support', label: 'Support' },
 ] as const;

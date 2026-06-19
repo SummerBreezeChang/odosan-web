@@ -30,6 +30,12 @@ export default function ForProviders() {
                   Join the provider pool →
                 </Link>
                 <Link
+                  href="/territory"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-od-navy/15 bg-white px-6 py-3 text-base font-semibold text-od-navy transition-colors hover:bg-od-primary-soft sm:w-auto"
+                >
+                  See territory demand
+                </Link>
+                <Link
                   href="/provider"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-od-navy/15 bg-white px-6 py-3 text-base font-semibold text-od-navy transition-colors hover:bg-od-primary-soft sm:w-auto"
                 >

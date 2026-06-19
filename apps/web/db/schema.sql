@@ -45,6 +45,37 @@ CREATE INDEX IF NOT EXISTS leads_status_idx ON leads (status);
 CREATE INDEX IF NOT EXISTS leads_chosen_provider_idx ON leads (chosen_provider_id);
 
 -- ----------------------------------------------------------------------------
+-- Data pipeline tables — populated from odosan-data-pipeline output
+-- ----------------------------------------------------------------------------
+
+-- One row per home from output/home_profiles.json. Per-home data — the
+-- HOMEOWNER side of the privacy line. Never exposed to providers in raw form.
+CREATE TABLE IF NOT EXISTS home_profiles (
+  parcel_id      text PRIMARY KEY,
+  address        text NOT NULL,
+  zip            text NOT NULL,
+  year_built     integer,
+  owner_type     text,
+  systems        jsonb NOT NULL,
+  solar          jsonb NOT NULL,
+  need_scores    jsonb NOT NULL,
+  top_needs      jsonb NOT NULL,
+  imported_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS home_profiles_zip_idx ON home_profiles (zip);
+CREATE INDEX IF NOT EXISTS home_profiles_address_lower_idx ON home_profiles (lower(address));
+
+-- One row per ZIP from output/territory_summary.json. PROVIDER side of the
+-- privacy line — aggregate demand counts only, NEVER per-home.
+CREATE TABLE IF NOT EXISTS territory_summaries (
+  zip            text PRIMARY KEY,
+  homes_count    integer NOT NULL,
+  demand         jsonb NOT NULL,
+  imported_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- ----------------------------------------------------------------------------
 -- better-auth tables (default v1.x schema — kysely expects these exact names)
 -- Docs: https://www.better-auth.com/docs/concepts/database
 -- ----------------------------------------------------------------------------

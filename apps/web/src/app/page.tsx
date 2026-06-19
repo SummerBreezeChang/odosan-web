@@ -30,6 +30,12 @@ export default function Home() {
                   Diagnose my problem →
                 </Link>
                 <Link
+                  href="/my-home"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-od-navy/15 bg-white px-6 py-3 text-base font-semibold text-od-navy transition-colors hover:bg-od-primary-soft sm:w-auto"
+                >
+                  Look up my home
+                </Link>
+                <Link
                   href="/for-providers"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-od-navy/15 bg-white px-6 py-3 text-base font-semibold text-od-navy transition-colors hover:bg-od-primary-soft sm:w-auto"
                 >

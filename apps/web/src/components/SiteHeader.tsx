@@ -11,7 +11,9 @@ const PRIMARY_LINKS = [
 
 const SHEET_LINKS = [
   { href: '/diagnose', label: 'Diagnose my problem' },
+  { href: '/my-home', label: 'Look up my home' },
   { href: '/for-providers', label: "I'm a service pro" },
+  { href: '/territory', label: 'Territory demand' },
   { href: '/account/signin', label: 'Sign in' },
   { href: '/support', label: 'Support' },
   { href: '/privacy', label: 'Privacy' },

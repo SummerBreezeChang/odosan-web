@@ -2,6 +2,13 @@ import { NextRequest } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
+type ClarifyingQuestion = {
+  id: string;
+  question: string;
+  type: 'text' | 'yesno' | 'select';
+  options?: string[];
+};
+
 type DiagnosisResult = {
   issue: string;
   severity: 'urgent' | 'soon' | 'monitor';
@@ -10,6 +17,8 @@ type DiagnosisResult = {
   fairPriceRange: string;
   diyOrPro: 'diy' | 'pro';
   explanation: string;
+  confidence: number; // 0-100
+  clarifyingQuestions: ClarifyingQuestion[];
 };
 
 export async function POST(request: NextRequest) {
@@ -49,6 +58,15 @@ ${photo ? 'A photo is attached.' : 'No photo attached.'}
 
 Analyze this home maintenance issue and provide a diagnosis. Be honest about uncertainty — never invent details you cannot verify from the image or description.
 
+A photo plus a one-line description usually isn't enough to give a confident, actionable brief that a contractor can quote against. Your job is BOTH:
+  (A) give your best first-pass diagnosis right now, AND
+  (B) propose 2-3 short clarifying questions that, if answered, would let you sharpen severity / scope / fair price.
+
+Score your own confidence honestly:
+  - 90-100: photo + description are unambiguous, no questions needed
+  - 60-89:  could go a few ways; ask 2-3 targeted questions
+  - 0-59:   really unclear; ask 3 questions covering the main forks (size, severity, age, location)
+
 Return ONLY valid JSON in exactly this format, with no markdown or code blocks:
 {
   "issue": "short plain-English problem name",
@@ -57,12 +75,21 @@ Return ONLY valid JSON in exactly this format, with no markdown or code blocks:
   "scopeOfWork": "1-2 sentence scope a professional would perform",
   "fairPriceRange": "$150-$400",
   "diyOrPro": "pro",
-  "explanation": "2-3 reassuring, clear sentences explaining what you see and why you recommend this approach"
+  "explanation": "2-3 reassuring, clear sentences explaining what you see and why you recommend this approach",
+  "confidence": 65,
+  "clarifyingQuestions": [
+    { "id": "q1", "question": "Is the stain wet right now, or dry?", "type": "yesno" },
+    { "id": "q2", "question": "How long ago did you first notice this?", "type": "select", "options": ["This week", "1-4 weeks ago", "1-6 months", "Over 6 months", "Unsure"] },
+    { "id": "q3", "question": "Briefly — what's directly above or behind this spot?", "type": "text" }
+  ]
 }
 
 severity must be one of: urgent, soon, monitor
 recommendedCategory must be one of: plumbing_drainage, gutters_drainage, landscaping, roofing, electrical, hvac, pest_control, handyman, painting
-diyOrPro must be one of: diy, pro`;
+diyOrPro must be one of: diy, pro
+confidence must be 0-100 integer
+clarifyingQuestions must be 0-3 items; use [] only if your confidence is already 90+
+Each question.type must be one of: text, yesno, select. If type=select, include options[]. Keep each question short and answerable in 5-15 seconds.`;
 
     const requestBody = {
       contents: [
@@ -128,6 +155,10 @@ diyOrPro must be one of: diy, pro`;
     ) {
       throw new Error('Incomplete diagnosis from Gemini');
     }
+
+    // Defensive defaults for optional fields that older clients might miss
+    if (typeof diagnosis.confidence !== 'number') diagnosis.confidence = 70;
+    if (!Array.isArray(diagnosis.clarifyingQuestions)) diagnosis.clarifyingQuestions = [];
 
     return Response.json(diagnosis);
   } catch (error) {

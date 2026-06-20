@@ -4,9 +4,24 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 
-type Step = 'intake' | 'diagnosing' | 'result' | 'matches' | 'consent' | 'done';
+type Step =
+  | 'intake'
+  | 'diagnosing'
+  | 'clarify'
+  | 'refining'
+  | 'result'
+  | 'matches'
+  | 'consent'
+  | 'done';
 
 type Severity = 'urgent' | 'soon' | 'monitor';
+
+type ClarifyingQuestion = {
+  id: string;
+  question: string;
+  type: 'text' | 'yesno' | 'select';
+  options?: string[];
+};
 
 type DiagnosisResult = {
   issue: string;
@@ -16,6 +31,8 @@ type DiagnosisResult = {
   fairPriceRange: string;
   diyOrPro: 'diy' | 'pro';
   explanation: string;
+  confidence?: number;
+  clarifyingQuestions?: ClarifyingQuestion[];
 };
 
 type Provider = {
@@ -69,6 +86,8 @@ export default function Home() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [firstPass, setFirstPass] = useState<DiagnosisResult | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   // Pre-fill from URL params when arriving via /my-home's per-trade CTAs.
   // Only fires once and only if the params match our known options, so users
@@ -170,20 +189,81 @@ export default function Home() {
       }
 
       const result: DiagnosisResult = await response.json();
-      setDiagnosis(result);
 
-      // Fetch matched providers
-      const providersResponse = await fetch(
-        `/api/providers?category=${result.recommendedCategory}&neighborhood=${encodeURIComponent(neighborhood)}`
-      );
-      const providersData = await providersResponse.json();
-      setProviders(providersData.providers || []);
+      // If Gemini wants clarification, go through the clarify step before
+      // committing to a final diagnosis. Otherwise jump straight to result.
+      const needsClarify =
+        Array.isArray(result.clarifyingQuestions) && result.clarifyingQuestions.length > 0;
 
-      setStep('result');
+      if (needsClarify) {
+        setFirstPass(result);
+        // Pre-fill answers map so inputs are controlled from the start
+        const initial: Record<string, string> = {};
+        for (const q of result.clarifyingQuestions ?? []) initial[q.id] = '';
+        setAnswers(initial);
+        setStep('clarify');
+      } else {
+        setDiagnosis(result);
+        await loadProvidersFor(result.recommendedCategory);
+        setStep('result');
+      }
     } catch (error) {
       console.error('Error during diagnosis:', error);
       alert('Failed to diagnose. Please try again.');
       setStep('intake');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const loadProvidersFor = async (recommendedCategory: string) => {
+    try {
+      const providersResponse = await fetch(
+        `/api/providers?category=${recommendedCategory}&neighborhood=${encodeURIComponent(neighborhood)}`
+      );
+      const providersData = await providersResponse.json();
+      setProviders(providersData.providers || []);
+    } catch (err) {
+      console.error('Error fetching providers:', err);
+      setProviders([]);
+    }
+  };
+
+  const handleRefine = async () => {
+    if (!firstPass) return;
+    setIsSubmitting(true);
+    setStep('refining');
+    try {
+      const formData = new FormData();
+      formData.append('category', selectedCategory);
+      formData.append('description', description);
+      formData.append('neighborhood', neighborhood);
+      formData.append('firstPass', JSON.stringify(firstPass));
+      formData.append('answers', JSON.stringify(answers));
+      if (photoFile) formData.append('photo', photoFile);
+
+      const response = await fetch('/api/diagnose-refine', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Refine failed');
+
+      const refined: DiagnosisResult = await response.json();
+      setDiagnosis(refined);
+      await loadProvidersFor(refined.recommendedCategory);
+      setStep('result');
+    } catch (error) {
+      console.error('Error during refine:', error);
+      alert('Failed to refine. Showing first-pass diagnosis instead.');
+      // Fall back gracefully — show what we have
+      if (firstPass) {
+        setDiagnosis(firstPass);
+        await loadProvidersFor(firstPass.recommendedCategory);
+        setStep('result');
+      } else {
+        setStep('intake');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -237,7 +317,129 @@ export default function Home() {
     setDiagnosis(null);
     setProviders([]);
     setSelectedProvider('');
+    setFirstPass(null);
+    setAnswers({});
   };
+
+  const allClarifyingAnswered =
+    firstPass?.clarifyingQuestions?.every((q) => (answers[q.id] ?? '').trim().length > 0) ?? false;
+
+  if (step === 'clarify' && firstPass) {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+          <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
+            Quick clarification
+          </p>
+          <h1
+            className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            A few quick questions
+          </h1>
+          <p className="text-base text-od-muted">
+            Best guess so far: <span className="font-semibold text-od-navy">{firstPass.issue}</span>{' '}
+            ({firstPass.confidence ?? 70}% confident). A few short answers below will tighten the
+            estimate range and let providers quote more accurately.
+          </p>
+
+          <div className="mt-8 space-y-6">
+            {firstPass.clarifyingQuestions?.map((q, idx) => (
+              <div key={q.id}>
+                <label htmlFor={q.id} className="block text-sm font-semibold text-od-navy">
+                  {idx + 1}. {q.question}
+                </label>
+                {q.type === 'yesno' && (
+                  <div className="mt-2 flex gap-2">
+                    {['Yes', 'No', 'Unsure'].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                          answers[q.id] === opt
+                            ? 'border-od-navy bg-od-navy text-white'
+                            : 'border-od-border bg-white text-od-navy hover:bg-od-primary-soft'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {q.type === 'select' && q.options && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {q.options.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                          answers[q.id] === opt
+                            ? 'border-od-navy bg-od-navy text-white'
+                            : 'border-od-border bg-white text-od-navy hover:bg-od-primary-soft'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {q.type === 'text' && (
+                  <input
+                    id={q.id}
+                    type="text"
+                    value={answers[q.id] ?? ''}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder="Type your answer..."
+                    className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              onClick={async () => {
+                // Skip clarification — show the first-pass result as-is
+                setDiagnosis(firstPass);
+                await loadProvidersFor(firstPass.recommendedCategory);
+                setStep('result');
+              }}
+              className="inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-3 text-base font-semibold text-od-navy hover:bg-od-primary-soft"
+            >
+              Skip — use first-pass
+            </button>
+            <button
+              type="button"
+              onClick={handleRefine}
+              disabled={!allClarifyingAnswered || isSubmitting}
+              className="inline-flex items-center justify-center rounded-xl bg-od-navy px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-od-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Sharpen diagnosis →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'refining') {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div
+            className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full mx-auto mb-6"
+            style={{ animation: 'spin 1s linear infinite' }}
+          />
+          <h2 className="text-2xl font-semibold text-od-navy mb-2">Refining with your answers...</h2>
+          <p className="text-sm text-od-muted">A moment while we tighten the estimate range.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'diagnosing') {
     return (
@@ -269,9 +471,25 @@ export default function Home() {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
         <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>Diagnosis</h1>
-            <p className="text-sm text-gray-500">Here's what we found</p>
+          <div className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>Diagnosis</h1>
+              <p className="text-sm text-gray-500">Here&apos;s what we found</p>
+            </div>
+            {typeof diagnosis.confidence === 'number' && (
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                  diagnosis.confidence >= 85
+                    ? 'bg-od-green-soft text-od-green'
+                    : diagnosis.confidence >= 60
+                      ? 'bg-od-orange-soft text-od-orange'
+                      : 'bg-od-red-soft text-od-red'
+                }`}
+                title="How confident the model is in this diagnosis"
+              >
+                Confidence {diagnosis.confidence}%
+              </span>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">

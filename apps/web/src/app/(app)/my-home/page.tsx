@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useSession } from '@/lib/auth-client';
 
 type SystemStatus = 'ok' | 'watch' | 'due' | 'unknown';
 
@@ -100,11 +102,80 @@ const STATUS_STYLE: Record<SystemStatus, { label: string; chip: string; text: st
   unknown: { label: 'Unknown', chip: 'bg-od-track text-od-muted', text: 'text-od-muted' },
 };
 
-export default function MyHome() {
+export default function MyHomePage() {
+  return (
+    <Suspense fallback={null}>
+      <MyHome />
+    </Suspense>
+  );
+}
+
+function MyHome() {
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [input, setInput] = useState('');
   const [profile, setProfile] = useState<HomeProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [savedParcels, setSavedParcels] = useState<Set<string>>(new Set());
+  const [savingHome, setSavingHome] = useState(false);
+
+  // Fetch list of saved parcels for signed-in homeowners so we can show
+  // "Saved ★" instead of "Save my home" on already-saved homes.
+  useEffect(() => {
+    if (!session?.user) return;
+    fetch('/api/my-homes')
+      .then((r) => r.json())
+      .then((d) => {
+        const ids = new Set<string>((d.homes ?? []).map((h: { parcel_id: string }) => h.parcel_id));
+        setSavedParcels(ids);
+      })
+      .catch(() => {});
+  }, [session]);
+
+  // Deep-link from /dashboard's "Open home profile" — auto-lookup the address.
+  useEffect(() => {
+    const addr = searchParams.get('address');
+    if (addr && !profile && !loading) {
+      setInput(addr);
+      (async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/home-profile?address=${encodeURIComponent(addr)}`);
+          const data = await res.json();
+          if (res.ok) setProfile(data.profile);
+          else setError(data.error ?? 'Lookup failed');
+        } catch {
+          setError('Network error');
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function handleSaveHome() {
+    if (!profile) return;
+    if (!session?.user) {
+      // Anonymous → send to signup with parcel param; post-signup hook saves on first dashboard load
+      window.location.href = `/account/signup?next=/dashboard&parcel=${encodeURIComponent(profile.parcel_id)}`;
+      return;
+    }
+    setSavingHome(true);
+    try {
+      const res = await fetch('/api/save-home', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parcel_id: profile.parcel_id }),
+      });
+      if (res.ok) {
+        setSavedParcels((prev) => new Set(prev).add(profile.parcel_id));
+      }
+    } finally {
+      setSavingHome(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -212,22 +283,41 @@ export default function MyHome() {
             </div>
           </div>
 
-          {/* Save my home CTA — homeowner account hook */}
-          <div className="mt-4 rounded-2xl border border-od-primary/15 bg-od-cream p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-            <div>
-              <p className="text-sm font-semibold text-od-navy">✨ Save this home to your account</p>
-              <p className="mt-1 text-sm text-od-muted">
-                Track repairs over time, get seasonal reminders, and revisit your maintenance
-                history. Free, no spam.
-              </p>
+          {/* Save my home CTA — different state for signed-in vs anonymous */}
+          {savedParcels.has(profile.parcel_id) ? (
+            <div className="mt-4 rounded-2xl border border-od-green/20 bg-od-green-soft p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+              <div>
+                <p className="text-sm font-semibold text-od-navy">★ Saved to your homes</p>
+                <p className="mt-1 text-sm text-od-muted">
+                  This home is in your dashboard.
+                </p>
+              </div>
+              <a
+                href="/dashboard"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-2.5 text-sm font-semibold text-od-navy hover:bg-od-primary-soft sm:mt-0 sm:w-auto"
+              >
+                Open dashboard →
+              </a>
             </div>
-            <a
-              href={`/account/signup?next=/my-home${profile.parcel_id ? `&parcel=${encodeURIComponent(profile.parcel_id)}` : ''}`}
-              className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
-            >
-              Save my home →
-            </a>
-          </div>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-od-primary/15 bg-od-cream p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+              <div>
+                <p className="text-sm font-semibold text-od-navy">✨ Save this home to your account</p>
+                <p className="mt-1 text-sm text-od-muted">
+                  Track repairs over time, see provider estimates, revisit your maintenance
+                  history. Free, no spam.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveHome}
+                disabled={savingHome}
+                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
+              >
+                {savingHome ? 'Saving…' : session?.user ? 'Save my home →' : 'Sign up to save →'}
+              </button>
+            </div>
+          )}
 
           {/* System health */}
           <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">

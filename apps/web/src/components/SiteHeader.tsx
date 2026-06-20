@@ -12,9 +12,11 @@ const PRIMARY_LINKS = [
 const SHEET_LINKS = [
   { href: '/diagnose', label: 'Diagnose my problem', kind: 'homeowner' },
   { href: '/my-home', label: 'Look up my home', kind: 'homeowner' },
+  { href: '/dashboard', label: 'My dashboard', kind: 'homeowner' },
   { href: '/for-providers', label: "I'm a service pro", kind: 'provider' },
   { href: '/territory', label: 'Territory demand', kind: 'provider' },
-  { href: '/account/signin?next=/provider', label: 'Provider sign in', kind: 'provider' },
+  { href: '/provider', label: 'Provider lead inbox', kind: 'provider' },
+  { href: '/account/signin', label: 'Sign in', kind: 'misc' },
   { href: '/support', label: 'Support', kind: 'misc' },
   { href: '/privacy', label: 'Privacy', kind: 'misc' },
 ] as const;

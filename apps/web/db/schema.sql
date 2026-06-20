@@ -132,3 +132,48 @@ CREATE TABLE IF NOT EXISTS "verification" (
 );
 
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON "verification" (identifier);
+
+-- ----------------------------------------------------------------------------
+-- Two-sided dashboard linkage
+-- ----------------------------------------------------------------------------
+
+-- Link a signed-in better-auth user to a provider row (the business they own
+-- / manage). One user per provider for v1; can be expanded later for teams.
+CREATE TABLE IF NOT EXISTS provider_users (
+  user_id      text PRIMARY KEY REFERENCES "user" (id) ON DELETE CASCADE,
+  provider_id  uuid NOT NULL REFERENCES providers (provider_id) ON DELETE CASCADE,
+  role         text NOT NULL DEFAULT 'owner',
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (provider_id)
+);
+
+-- Link a signed-in better-auth user to home parcels they've saved.
+CREATE TABLE IF NOT EXISTS homeowner_homes (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      text NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  parcel_id    text NOT NULL REFERENCES home_profiles (parcel_id) ON DELETE CASCADE,
+  saved_at     timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, parcel_id)
+);
+
+CREATE INDEX IF NOT EXISTS homeowner_homes_user_idx ON homeowner_homes (user_id);
+
+-- Provider quotes/estimates on leads. Homeowner picks one in their dashboard.
+CREATE TABLE IF NOT EXISTS lead_quotes (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id       uuid NOT NULL REFERENCES leads (lead_id) ON DELETE CASCADE,
+  provider_id   uuid NOT NULL REFERENCES providers (provider_id) ON DELETE CASCADE,
+  amount_low    numeric(10, 2),
+  amount_high   numeric(10, 2),
+  notes         text,
+  status        text NOT NULL DEFAULT 'submitted',
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (lead_id, provider_id)
+);
+
+CREATE INDEX IF NOT EXISTS lead_quotes_lead_idx ON lead_quotes (lead_id);
+CREATE INDEX IF NOT EXISTS lead_quotes_provider_idx ON lead_quotes (provider_id);
+
+-- Track which signed-in homeowner created a lead (nullable for anonymous flow).
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS homeowner_user_id text REFERENCES "user" (id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS leads_homeowner_user_idx ON leads (homeowner_user_id);

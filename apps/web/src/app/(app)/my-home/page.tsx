@@ -108,21 +108,27 @@ export default function MyHome() {
           </button>
         </form>
         <p className="mt-2 text-xs text-od-subtle">
-          Sample addresses available in Rockridge, Berkeley Hills, and Elmwood (94609, 94618,
-          94705, 94707, 94708).
+          62 East Bay homes loaded: 12 demo parcels + 50 real Alameda County parcels across 94609,
+          94618, 94705, 94707, 94708.
         </p>
         <div className="mt-4 rounded-xl border border-od-primary/15 bg-od-primary-soft px-3 py-2 text-xs text-od-navy">
-          <span className="font-semibold">Demo data:</span>{' '}
-          12 East Bay parcels &middot; solar &amp; roof area pulled live from{' '}
+          <span className="font-semibold">What&apos;s real vs sample:</span>{' '}
+          50 homes use{' '}
+          <a href="https://data.acgov.org" className="underline" target="_blank" rel="noopener">
+            real Alameda County parcels
+          </a>{' '}
+          (APN, address, coordinates, ownership). Solar candidacy is computed live from{' '}
           <a href="https://www.openstreetmap.org" className="underline" target="_blank" rel="noopener">
             OpenStreetMap
           </a>{' '}
-          +{' '}
+          building footprints +{' '}
           <a href="https://re.jrc.ec.europa.eu/pvg_tools/en/" className="underline" target="_blank" rel="noopener">
             PVGIS
           </a>
-          {' '}&middot; system ages from sample county/permit data, ready to swap with live Alameda
-          County + Oakland/Berkeley permits at any time.
+          {' '}solar yield for each home&apos;s exact lat/lon. System age estimates use sample
+          permit data — Oakland and Berkeley don&apos;t publish permit histories as open data,
+          so until we partner directly with their permit offices, real homes show &ldquo;unknown&rdquo;
+          status for systems without observed permits.
         </div>
 
         {error && (

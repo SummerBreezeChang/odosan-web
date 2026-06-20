@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertCircle, Clock, CheckCircle2, MapPin } from 'lucide-react';
 import { DateDisplay } from '@/components/DateDisplay';
+import { useSession } from '@/lib/auth-client';
 
 type Lead = {
   lead_id: string;
@@ -35,12 +37,23 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function ProviderInbox() {
+  const router = useRouter();
+  const { data: session, isPending: sessionLoading } = useSession();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
+  // Auth gate: send unauthenticated visitors to provider sign-in with a
+  // return URL so they land back here after logging in.
+  useEffect(() => {
+    if (!sessionLoading && !session?.user) {
+      router.replace('/account/signin?next=/provider');
+    }
+  }, [session, sessionLoading, router]);
+
   useEffect(() => {
     setMounted(true);
+    if (sessionLoading || !session?.user) return; // wait for auth
     // Fetch all open leads for the provider inbox
     fetch('/api/leads?status=open')
       .then((res) => {
@@ -56,7 +69,16 @@ export default function ProviderInbox() {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [session, sessionLoading]);
+
+  if (sessionLoading || (!session?.user && mounted)) {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 text-center">
+        <div className="h-8 w-8 mx-auto animate-spin rounded-full border-4 border-od-navy/10 border-t-od-navy" />
+        <p className="mt-4 text-sm text-od-muted">Checking your sign-in…</p>
+      </div>
+    );
+  }
 
   if (loading || !mounted) {
     return (

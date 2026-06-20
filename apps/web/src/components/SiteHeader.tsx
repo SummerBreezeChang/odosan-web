@@ -10,13 +10,13 @@ const PRIMARY_LINKS = [
 ] as const;
 
 const SHEET_LINKS = [
-  { href: '/diagnose', label: 'Diagnose my problem' },
-  { href: '/my-home', label: 'Look up my home' },
-  { href: '/for-providers', label: "I'm a service pro" },
-  { href: '/territory', label: 'Territory demand' },
-  { href: '/account/signin', label: 'Sign in' },
-  { href: '/support', label: 'Support' },
-  { href: '/privacy', label: 'Privacy' },
+  { href: '/diagnose', label: 'Diagnose my problem', kind: 'homeowner' },
+  { href: '/my-home', label: 'Look up my home', kind: 'homeowner' },
+  { href: '/for-providers', label: "I'm a service pro", kind: 'provider' },
+  { href: '/territory', label: 'Territory demand', kind: 'provider' },
+  { href: '/account/signin?next=/provider', label: 'Provider sign in', kind: 'provider' },
+  { href: '/support', label: 'Support', kind: 'misc' },
+  { href: '/privacy', label: 'Privacy', kind: 'misc' },
 ] as const;
 
 export function SiteHeader() {
@@ -72,10 +72,10 @@ export function SiteHeader() {
               );
             })}
             <Link
-              href="/account/signin"
+              href="/account/signin?next=/provider"
               className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-od-primary-soft hover:text-od-navy"
             >
-              Sign in
+              Provider sign in
             </Link>
           </nav>
           <div className="ml-2 flex shrink-0 items-center pr-0.5 sm:pr-1">

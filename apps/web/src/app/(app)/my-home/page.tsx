@@ -212,6 +212,23 @@ export default function MyHome() {
             </div>
           </div>
 
+          {/* Save my home CTA — homeowner account hook */}
+          <div className="mt-4 rounded-2xl border border-od-primary/15 bg-od-cream p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <p className="text-sm font-semibold text-od-navy">✨ Save this home to your account</p>
+              <p className="mt-1 text-sm text-od-muted">
+                Track repairs over time, get seasonal reminders, and revisit your maintenance
+                history. Free, no spam.
+              </p>
+            </div>
+            <a
+              href={`/account/signup?next=/my-home${profile.parcel_id ? `&parcel=${encodeURIComponent(profile.parcel_id)}` : ''}`}
+              className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
+            >
+              Save my home →
+            </a>
+          </div>
+
           {/* System health */}
           <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">

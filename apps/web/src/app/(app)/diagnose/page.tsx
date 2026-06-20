@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 
@@ -74,7 +74,18 @@ const severityConfig: Record<Severity, { icon: any; color: string; label: string
   monitor: { icon: CheckCircle2, color: 'text-gray-600', label: 'Monitor' },
 };
 
-export default function Home() {
+export default function DiagnosePage() {
+  // useSearchParams must be inside a Suspense boundary for Next.js to bail
+  // out of static rendering cleanly. The inner component holds all the state
+  // machine logic and is wrapped here.
+  return (
+    <Suspense fallback={null}>
+      <DiagnoseInner />
+    </Suspense>
+  );
+}
+
+function DiagnoseInner() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('intake');
   const [selectedCategory, setSelectedCategory] = useState<string>('');

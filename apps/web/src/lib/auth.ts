@@ -37,7 +37,9 @@ const pool =
     ssl: { rejectUnauthorized: false },
     max: 3,
     idleTimeoutMillis: 10_000,
-    connectionTimeoutMillis: 5_000,
+    // 30s covers Aurora Serverless v2 cold-start (cluster wakes from
+    // MinCapacity=0 pause in ~8-15s).
+    connectionTimeoutMillis: 30_000,
   }));
 
 // Origins we accept auth requests from. Include every URL the app may be

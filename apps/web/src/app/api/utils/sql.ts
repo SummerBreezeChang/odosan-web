@@ -53,14 +53,16 @@ function getPool(): Pool {
   if (!global.__odosanPgPool) {
     global.__odosanPgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      // RDS Proxy terminates TLS; require it but skip CA verification so we
-      // don't have to bundle the RDS CA cert. If you want strict verification,
-      // set PGSSLROOTCERT to the rds-ca-rsa2048-g1 PEM path.
+      // Aurora's RDS-managed cert isn't in Node's default trust chain; skip
+      // verification rather than bundling the CA. For strict verification set
+      // PGSSLROOTCERT to the rds-ca-rsa2048-g1 PEM path.
       ssl: { rejectUnauthorized: false },
-      // Keep individual function instances thin; let RDS Proxy do the pooling.
       max: 3,
       idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 5_000,
+      // Aurora Serverless v2 with MinCapacity=0 pauses after 5 min idle. The
+      // first request after a pause has to wake the cluster — typically
+      // 8-15s. 30s gives plenty of headroom; subsequent requests are fast.
+      connectionTimeoutMillis: 30_000,
     });
   }
   return global.__odosanPgPool;

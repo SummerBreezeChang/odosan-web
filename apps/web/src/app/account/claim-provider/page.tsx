@@ -38,6 +38,7 @@ function ClaimProviderInner() {
   const searchParams = useSearchParams();
   const { data: session, isPending: sessionLoading } = useSession();
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('');
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string>('');
@@ -54,12 +55,15 @@ function ClaimProviderInner() {
   useEffect(() => {
     if (!session?.user) return;
     setLoading(true);
-    fetch(`/api/providers/unclaimed?q=${encodeURIComponent(query)}`)
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (category) params.set('category', category);
+    fetch(`/api/providers/unclaimed?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => setProviders(d.providers ?? []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [session, query]);
+  }, [session, query, category]);
 
   async function claim(providerId: string) {
     setClaiming(providerId);
@@ -115,13 +119,27 @@ function ClaimProviderInner() {
           and we&apos;ll add you.)
         </p>
 
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by business name..."
-          className="mt-6 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none"
-        />
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by business name or trade (e.g. plumbing, roofing)..."
+            className="flex-1 rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none"
+          />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy focus:border-od-primary focus:outline-none sm:w-56"
+          >
+            <option value="">All trades</option>
+            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {error && (
           <div className="mt-4 rounded-xl border border-od-red/20 bg-od-red-soft px-4 py-3 text-sm text-od-red">

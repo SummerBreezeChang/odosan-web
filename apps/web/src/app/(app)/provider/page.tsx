@@ -221,7 +221,7 @@ export default function ProviderInbox() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
-                        {sev.label} · <DateDisplay date={lead.created_at} />
+                        {sev.label} · <DateDisplay dateString={lead.created_at} format="short" />
                       </p>
                       <h3 className="mt-1 text-lg font-bold text-od-navy">{lead.problem}</h3>
                       <p className="mt-1 text-sm text-od-muted">

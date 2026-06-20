@@ -111,6 +111,19 @@ export default function MyHome() {
           Sample addresses available in Rockridge, Berkeley Hills, and Elmwood (94609, 94618,
           94705, 94707, 94708).
         </p>
+        <div className="mt-4 rounded-xl border border-od-primary/15 bg-od-primary-soft px-3 py-2 text-xs text-od-navy">
+          <span className="font-semibold">Demo data:</span>{' '}
+          12 East Bay parcels &middot; solar &amp; roof area pulled live from{' '}
+          <a href="https://www.openstreetmap.org" className="underline" target="_blank" rel="noopener">
+            OpenStreetMap
+          </a>{' '}
+          +{' '}
+          <a href="https://re.jrc.ec.europa.eu/pvg_tools/en/" className="underline" target="_blank" rel="noopener">
+            PVGIS
+          </a>
+          {' '}&middot; system ages from sample county/permit data, ready to swap with live Alameda
+          County + Oakland/Berkeley permits at any time.
+        </div>
 
         {error && (
           <div className="mt-6 rounded-xl border border-od-red/20 bg-od-red-soft px-4 py-3 text-sm text-od-red">
@@ -180,9 +193,16 @@ export default function MyHome() {
 
           {/* Solar */}
           <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
-              Solar potential
-            </h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+                Solar potential
+              </h3>
+              {profile.solar.source === 'osm+pvgis' && (
+                <span className="rounded-full bg-od-green-soft px-2.5 py-0.5 text-xs font-semibold text-od-green">
+                  Live: OpenStreetMap + PVGIS
+                </span>
+              )}
+            </div>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
                 <p className="text-xs uppercase text-od-subtle">Roof area</p>

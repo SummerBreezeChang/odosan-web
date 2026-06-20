@@ -42,6 +42,57 @@ const TRADE_LABELS: Record<string, string> = {
   solar: 'Solar',
 };
 
+// Pipeline system key → /diagnose category dropdown value
+const SYSTEM_TO_CATEGORY: Record<string, string> = {
+  roof: 'roofing',
+  water_heater: 'plumbing_drainage',
+  hvac: 'hvac',
+  electrical: 'electrical',
+};
+
+// Pipeline trade key (used in top_needs) → /diagnose category dropdown value
+// solar intentionally omitted — no current diagnose category for solar install
+const TRADE_TO_CATEGORY: Record<string, string> = {
+  roof: 'roofing',
+  water_heater: 'plumbing_drainage',
+  hvac: 'hvac',
+  electrical: 'electrical',
+  gutters: 'gutters_drainage',
+};
+
+// /diagnose category → human label for "Find a [trade]" CTA button
+const CATEGORY_TO_FIND_LABEL: Record<string, string> = {
+  roofing: 'Find a roofer',
+  plumbing_drainage: 'Find a plumber',
+  hvac: 'Find an HVAC pro',
+  electrical: 'Find an electrician',
+  gutters_drainage: 'Find a gutter pro',
+};
+
+// ZIP → neighborhood option as it appears on /diagnose's dropdown
+const ZIP_TO_NEIGHBORHOOD: Record<string, string> = {
+  '94609': 'North Oakland / Rockridge',
+  '94618': 'North Oakland / Rockridge',
+  '94705': 'Berkeley',
+  '94707': 'Berkeley',
+  '94708': 'Berkeley',
+  '94706': 'Albany',
+  '94530': 'El Cerrito',
+  '94707-1': 'Kensington',
+  '94611': 'Piedmont',
+  '94608': 'Emeryville',
+  '94501': 'Alameda',
+  '94502': 'Alameda',
+};
+
+function buildDiagnoseHref(category: string | undefined, zip: string): string {
+  if (!category) return '/diagnose';
+  const params = new URLSearchParams({ category });
+  const n = ZIP_TO_NEIGHBORHOOD[zip];
+  if (n) params.set('neighborhood', n);
+  return `/diagnose?${params.toString()}`;
+}
+
 const STATUS_STYLE: Record<SystemStatus, { label: string; chip: string; text: string }> = {
   ok: { label: 'OK', chip: 'bg-od-green-soft text-od-green', text: 'text-od-green' },
   watch: { label: 'Watch', chip: 'bg-od-orange-soft text-od-orange', text: 'text-od-orange' },
@@ -169,10 +220,12 @@ export default function MyHome() {
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {Object.entries(profile.systems).map(([key, system]) => {
                 const style = STATUS_STYLE[system.status] ?? STATUS_STYLE.unknown;
+                const category = SYSTEM_TO_CATEGORY[key];
+                const showCta = category && (system.status === 'due' || system.status === 'watch');
                 return (
                   <div
                     key={key}
-                    className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4"
+                    className="flex flex-col rounded-2xl border border-gray-100 bg-gray-50/70 p-4"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <h4 className="text-lg font-bold text-od-navy">
@@ -191,6 +244,14 @@ export default function MyHome() {
                     <p className="mt-1 text-xs text-od-subtle">
                       Confidence: {Math.round(system.confidence * 100)}%
                     </p>
+                    {showCta && (
+                      <a
+                        href={buildDiagnoseHref(category, profile.zip)}
+                        className="mt-3 inline-flex items-center justify-center rounded-xl bg-od-navy px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-od-navy/90"
+                      >
+                        {CATEGORY_TO_FIND_LABEL[category]} →
+                      </a>
+                    )}
                   </div>
                 );
               })}
@@ -243,31 +304,44 @@ export default function MyHome() {
               What to handle next
             </h3>
             <ol className="mt-4 space-y-3">
-              {profile.top_needs.map((need, idx) => (
-                <li
-                  key={need.trade}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-od-navy text-sm font-bold text-white">
-                      {idx + 1}
-                    </span>
-                    <span className="text-base font-bold text-od-navy">
-                      {TRADE_LABELS[need.trade] ?? need.trade}
-                    </span>
-                  </div>
-                  <span className="text-sm font-semibold text-od-muted">
-                    score {need.score.toFixed(1)}
-                  </span>
-                </li>
-              ))}
+              {profile.top_needs.map((need, idx) => {
+                const category = TRADE_TO_CATEGORY[need.trade];
+                return (
+                  <li
+                    key={need.trade}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-od-navy text-sm font-bold text-white">
+                        {idx + 1}
+                      </span>
+                      <span className="text-base font-bold text-od-navy">
+                        {TRADE_LABELS[need.trade] ?? need.trade}
+                      </span>
+                      <span className="text-xs font-semibold text-od-muted">
+                        score {need.score.toFixed(1)}
+                      </span>
+                    </div>
+                    {category ? (
+                      <a
+                        href={buildDiagnoseHref(category, profile.zip)}
+                        className="inline-flex items-center justify-center rounded-xl bg-od-navy px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-od-navy/90"
+                      >
+                        Get matches →
+                      </a>
+                    ) : (
+                      <span className="text-xs text-od-subtle">No provider category yet</span>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
             <div className="mt-6">
               <a
                 href="/diagnose"
-                className="inline-flex items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90"
+                className="inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-2.5 text-sm font-semibold text-od-navy hover:bg-od-primary-soft"
               >
-                Diagnose a specific problem →
+                Diagnose a different problem →
               </a>
             </div>
           </div>

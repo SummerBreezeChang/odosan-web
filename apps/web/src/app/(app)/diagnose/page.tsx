@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 
 type Step = 'intake' | 'diagnosing' | 'result' | 'matches' | 'consent' | 'done';
@@ -57,6 +58,7 @@ const severityConfig: Record<Severity, { icon: any; color: string; label: string
 };
 
 export default function Home() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('intake');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
@@ -67,6 +69,16 @@ export default function Home() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-fill from URL params when arriving via /my-home's per-trade CTAs.
+  // Only fires once and only if the params match our known options, so users
+  // who land on /diagnose without params get a blank form like before.
+  useEffect(() => {
+    const c = searchParams.get('category');
+    if (c && categories.some((cat) => cat.id === c)) setSelectedCategory(c);
+    const n = searchParams.get('neighborhood');
+    if (n && neighborhoods.includes(n)) setNeighborhood(n);
+  }, [searchParams]);
 
   const stripExifAndResize = async (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {

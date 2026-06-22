@@ -67,7 +67,7 @@ export default function MyHomePage() {
   const [systems, setSystems] = useState<SystemRecord[]>([]);
   const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
   const [migrationStatus, setMigrationStatus] = useState<
-    'idle' | 'migrating' | 'done'
+    'idle' | 'migrating' | 'done' | 'failed'
   >('idle');
 
   // Refresh from whichever store is active for the current user.
@@ -81,22 +81,40 @@ export default function MyHomePage() {
         const hasLocal = local.briefs.length > 0 || local.systems.length > 0;
         if (hasLocal && migrationStatus === 'idle') {
           setMigrationStatus('migrating');
-          await migrateLocalToRemote();
+          const result = await migrateLocalToRemote();
           if (cancelled) return;
-          // Clear local after successful migration so we don't keep re-uploading.
-          try {
-            window.localStorage.removeItem('odosan:home-record');
-          } catch {}
-          setMigrationStatus('done');
+          // CRITICAL: only clear localStorage when the server confirmed it
+          // saved the rows. If migration failed (DB tables missing, network
+          // error, anything), keep local data intact so the user doesn't
+          // lose their record — they'll see it on next visit too.
+          if (result !== null) {
+            try {
+              window.localStorage.removeItem('odosan:home-record');
+            } catch {}
+            setMigrationStatus('done');
+          } else {
+            setMigrationStatus('failed');
+          }
         }
         const remote = await fetchRemoteRecord();
         if (cancelled) return;
         if (remote) {
-          setSystems(remote.systems);
-          setBriefs(remote.briefs);
+          // If the server has data, show it. If the server has nothing but
+          // local still does (because migration failed), show the local data
+          // as a fallback — user's record is never invisible.
+          if (remote.briefs.length === 0 && remote.systems.length === 0) {
+            const local = loadHomeRecord();
+            setSystems(local.systems);
+            setBriefs(local.briefs);
+          } else {
+            setSystems(remote.systems);
+            setBriefs(remote.briefs);
+          }
         } else {
-          setSystems([]);
-          setBriefs([]);
+          // Remote fetch failed entirely — fall back to localStorage.
+          const local = loadHomeRecord();
+          setSystems(local.systems);
+          setBriefs(local.briefs);
         }
       } else {
         const rec = loadHomeRecord();
@@ -162,6 +180,22 @@ export default function MyHomePage() {
       {migrationStatus === 'done' && hasAnyData && (
         <div className="mt-4 rounded-xl border border-od-green/20 bg-od-green-soft px-4 py-2 text-xs text-od-green">
           ✓ Your previous record has been moved to your account.
+        </div>
+      )}
+
+      {migrationStatus === 'failed' && (
+        <div className="mt-4 rounded-xl border border-od-orange/20 bg-od-orange-soft px-4 py-3 text-xs text-od-orange">
+          <p className="font-semibold">
+            ⚠ Couldn&apos;t sync your record to your account yet.
+          </p>
+          <p className="mt-1">
+            Your data is still safe in this browser — nothing was lost. Try
+            refreshing in a moment. If the issue persists, contact{' '}
+            <a href="mailto:contact@odosan.tech" className="underline">
+              contact@odosan.tech
+            </a>
+            .
+          </p>
         </div>
       )}
 

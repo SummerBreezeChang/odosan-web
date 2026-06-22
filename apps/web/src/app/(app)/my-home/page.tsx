@@ -1,10 +1,26 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
-
-type SystemStatus = 'ok' | 'watch' | 'due' | 'unknown';
+import {
+  ALL_SYSTEM_TYPES,
+  SYSTEM_LABELS,
+  loadHomeRecord,
+  type SystemRecord,
+  type SystemType,
+} from '@/lib/home-record';
+import {
+  TIMELINE_LABELS,
+  TIMELINE_ORDER,
+  bucketFor,
+  computeHealthScore,
+  computeMoneyPlan,
+  forecastSystem,
+  formatUSD,
+  type SystemForecast,
+  type TimelineBucket,
+} from '@/lib/home-economics';
 
 type HomeProfile = {
   parcel_id: string;
@@ -12,10 +28,7 @@ type HomeProfile = {
   zip: string;
   year_built: number | null;
   owner_type: string | null;
-  systems: Record<
-    string,
-    { age: number | null; status: SystemStatus; confidence: number; basis: string }
-  >;
+  systems: Record<string, unknown>;
   solar: {
     source: string;
     roof_area_m2: number;
@@ -28,79 +41,27 @@ type HomeProfile = {
   top_needs: Array<{ trade: string; score: number }>;
 };
 
-const SYSTEM_LABELS: Record<string, string> = {
-  roof: 'Roof',
-  water_heater: 'Water heater',
-  hvac: 'HVAC',
-  electrical: 'Electrical',
-};
-
-const TRADE_LABELS: Record<string, string> = {
-  roof: 'Roofing',
-  water_heater: 'Water heater',
-  hvac: 'HVAC',
-  electrical: 'Electrical',
-  gutters: 'Gutters',
-  solar: 'Solar',
-};
-
-// Pipeline system key → /diagnose category dropdown value
-const SYSTEM_TO_CATEGORY: Record<string, string> = {
-  roof: 'roofing',
+const SYSTEM_TO_CATEGORY: Record<SystemType, string> = {
   water_heater: 'plumbing_drainage',
   hvac: 'hvac',
-  electrical: 'electrical',
+  electrical_panel: 'electrical',
+  roof_invoice: 'roofing',
 };
 
-// Pipeline trade key (used in top_needs) → /diagnose category dropdown value
-// solar intentionally omitted — no current diagnose category for solar install
-const TRADE_TO_CATEGORY: Record<string, string> = {
-  roof: 'roofing',
-  water_heater: 'plumbing_drainage',
-  hvac: 'hvac',
-  electrical: 'electrical',
-  gutters: 'gutters_drainage',
-};
-
-// /diagnose category → human label for "Find a [trade]" CTA button
-const CATEGORY_TO_FIND_LABEL: Record<string, string> = {
-  roofing: 'Find a roofer',
-  plumbing_drainage: 'Find a plumber',
-  hvac: 'Find an HVAC pro',
-  electrical: 'Find an electrician',
-  gutters_drainage: 'Find a gutter pro',
-};
-
-// ZIP → neighborhood option as it appears on /diagnose's dropdown
 const ZIP_TO_NEIGHBORHOOD: Record<string, string> = {
   '94609': 'North Oakland / Rockridge',
   '94618': 'North Oakland / Rockridge',
   '94705': 'Berkeley',
   '94707': 'Berkeley',
   '94708': 'Berkeley',
-  '94706': 'Albany',
-  '94530': 'El Cerrito',
-  '94707-1': 'Kensington',
-  '94611': 'Piedmont',
-  '94608': 'Emeryville',
-  '94501': 'Alameda',
-  '94502': 'Alameda',
 };
 
-function buildDiagnoseHref(category: string | undefined, zip: string): string {
-  if (!category) return '/diagnose';
+function buildDiagnoseHref(category: string, zip: string): string {
   const params = new URLSearchParams({ category });
   const n = ZIP_TO_NEIGHBORHOOD[zip];
   if (n) params.set('neighborhood', n);
   return `/diagnose?${params.toString()}`;
 }
-
-const STATUS_STYLE: Record<SystemStatus, { label: string; chip: string; text: string }> = {
-  ok: { label: 'OK', chip: 'bg-od-green-soft text-od-green', text: 'text-od-green' },
-  watch: { label: 'Watch', chip: 'bg-od-orange-soft text-od-orange', text: 'text-od-orange' },
-  due: { label: 'Due', chip: 'bg-od-red-soft text-od-red', text: 'text-od-red' },
-  unknown: { label: 'Unknown', chip: 'bg-od-track text-od-muted', text: 'text-od-muted' },
-};
 
 export default function MyHomePage() {
   return (
@@ -119,9 +80,26 @@ function MyHome() {
   const [loading, setLoading] = useState(false);
   const [savedParcels, setSavedParcels] = useState<Set<string>>(new Set());
   const [savingHome, setSavingHome] = useState(false);
+  const [systems, setSystems] = useState<SystemRecord[]>([]);
 
-  // Fetch list of saved parcels for signed-in homeowners so we can show
-  // "Saved ★" instead of "Save my home" on already-saved homes.
+  // Load locally-documented systems for the current parcel.
+  useEffect(() => {
+    if (!profile) {
+      setSystems([]);
+      return;
+    }
+    setSystems(loadHomeRecord(profile.parcel_id).systems);
+  }, [profile]);
+
+  // Re-load when the user comes back from the document page.
+  useEffect(() => {
+    function onFocus() {
+      if (profile) setSystems(loadHomeRecord(profile.parcel_id).systems);
+    }
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [profile]);
+
   useEffect(() => {
     if (!session?.user) return;
     fetch('/api/my-homes')
@@ -133,33 +111,41 @@ function MyHome() {
       .catch(() => {});
   }, [session]);
 
-  // Deep-link from /dashboard's "Open home profile" — auto-lookup the address.
   useEffect(() => {
     const addr = searchParams.get('address');
     if (addr && !profile && !loading) {
       setInput(addr);
-      (async () => {
-        setLoading(true);
-        try {
-          const res = await fetch(`/api/home-profile?address=${encodeURIComponent(addr)}`);
-          const data = await res.json();
-          if (res.ok) setProfile(data.profile);
-          else setError(data.error ?? 'Lookup failed');
-        } catch {
-          setError('Network error');
-        } finally {
-          setLoading(false);
-        }
-      })();
+      void lookup(addr);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  async function lookup(addr: string) {
+    setLoading(true);
+    setError(null);
+    setProfile(null);
+    try {
+      const res = await fetch(`/api/home-profile?address=${encodeURIComponent(addr)}`);
+      const data = await res.json();
+      if (!res.ok) setError(data.error || 'Lookup failed');
+      else setProfile(data.profile);
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!input.trim()) return;
+    await lookup(input.trim());
+  }
+
   async function handleSaveHome() {
     if (!profile) return;
     if (!session?.user) {
-      // Anonymous → send to signup with parcel param; post-signup hook saves on first dashboard load
-      window.location.href = `/account/signup?next=/dashboard&parcel=${encodeURIComponent(profile.parcel_id)}`;
+      window.location.href = `/account/signup?next=/my-home&parcel=${encodeURIComponent(profile.parcel_id)}`;
       return;
     }
     setSavingHome(true);
@@ -169,51 +155,42 @@ function MyHome() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parcel_id: profile.parcel_id }),
       });
-      if (res.ok) {
-        setSavedParcels((prev) => new Set(prev).add(profile.parcel_id));
-      }
+      if (res.ok) setSavedParcels((prev) => new Set(prev).add(profile.parcel_id));
     } finally {
       setSavingHome(false);
     }
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!input.trim()) return;
-    setLoading(true);
-    setError(null);
-    setProfile(null);
-    try {
-      const res = await fetch(`/api/home-profile?address=${encodeURIComponent(input.trim())}`);
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Lookup failed');
-      } else {
-        setProfile(data.profile);
-      }
-    } catch (err) {
-      setError('Network error. Try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Compute derived state for the journey sections.
+  const forecasts = useMemo<SystemForecast[]>(
+    () => systems.map((s) => forecastSystem(s)),
+    [systems]
+  );
+  const { score, documentation_pct } = useMemo(
+    () => computeHealthScore(forecasts, systems.length, ALL_SYSTEM_TYPES.length),
+    [forecasts, systems]
+  );
+  const moneyPlan = useMemo(() => computeMoneyPlan(forecasts), [forecasts]);
+
+  const documentedTypes = useMemo(() => new Set(systems.map((s) => s.system_type)), [systems]);
+  const undocumentedTypes = ALL_SYSTEM_TYPES.filter((t) => !documentedTypes.has(t));
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
+    <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
+      {/* Address lookup */}
       <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
         <h1
-          className="text-4xl font-bold text-od-navy mb-3 tracking-tight sm:text-5xl"
+          className="text-4xl font-bold text-od-navy tracking-tight sm:text-5xl"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           My home
         </h1>
-        <p className="text-base text-od-muted mb-8">
-          Enter your address to see your home&apos;s systems, solar potential, and what needs
-          attention. Your address never leaves your screen — providers only see aggregate demand
-          by ZIP.
+        <p className="mt-3 text-base text-od-muted">
+          Document your home in 30-second snaps. We extract make, model, and age from each
+          nameplate, forecast what's due, and price out replacement with rebates baked in.
         </p>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
+        <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
             value={input}
@@ -226,35 +203,12 @@ function MyHome() {
             disabled={loading || !input.trim()}
             className="inline-flex items-center justify-center rounded-xl bg-od-navy px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-od-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Looking up...' : 'Look up'}
+            {loading ? 'Looking up…' : 'Look up'}
           </button>
         </form>
-        <p className="mt-2 text-xs text-od-subtle">
-          62 East Bay homes loaded: 12 demo parcels + 50 real Alameda County parcels across 94609,
-          94618, 94705, 94707, 94708.
-        </p>
-        <div className="mt-4 rounded-xl border border-od-primary/15 bg-od-primary-soft px-3 py-2 text-xs text-od-navy">
-          <span className="font-semibold">What&apos;s real vs sample:</span>{' '}
-          50 homes use{' '}
-          <a href="https://data.acgov.org" className="underline" target="_blank" rel="noopener">
-            real Alameda County parcels
-          </a>{' '}
-          (APN, address, coordinates, ownership). Solar candidacy is computed live from{' '}
-          <a href="https://www.openstreetmap.org" className="underline" target="_blank" rel="noopener">
-            OpenStreetMap
-          </a>{' '}
-          building footprints +{' '}
-          <a href="https://re.jrc.ec.europa.eu/pvg_tools/en/" className="underline" target="_blank" rel="noopener">
-            PVGIS
-          </a>
-          {' '}solar yield for each home&apos;s exact lat/lon. System age estimates use sample
-          permit data — Oakland and Berkeley don&apos;t publish permit histories as open data,
-          so until we partner directly with their permit offices, real homes show &ldquo;unknown&rdquo;
-          status for systems without observed permits.
-        </div>
 
         {error && (
-          <div className="mt-6 rounded-xl border border-od-red/20 bg-od-red-soft px-4 py-3 text-sm text-od-red">
+          <div className="mt-4 rounded-xl border border-od-red/20 bg-od-red-soft px-4 py-3 text-sm text-od-red">
             {error}
           </div>
         )}
@@ -262,198 +216,507 @@ function MyHome() {
 
       {profile && (
         <>
-          {/* Overview */}
-          <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
-                  Home overview
-                </p>
-                <h2
-                  className="mt-1 text-2xl font-bold text-od-navy sm:text-3xl"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {profile.address}
-                </h2>
-              </div>
-              <p className="text-sm text-od-muted">
-                ZIP {profile.zip}
-                {profile.year_built ? ` · Built ${profile.year_built}` : ''}
+          <HomeHero
+            profile={profile}
+            score={score}
+            documentationPct={documentation_pct}
+            documentedCount={systems.length}
+            totalSystems={ALL_SYSTEM_TYPES.length}
+            isSaved={savedParcels.has(profile.parcel_id)}
+            savingHome={savingHome}
+            onSaveHome={handleSaveHome}
+            signedIn={!!session?.user}
+            firstUndocumentedType={undocumentedTypes[0] ?? null}
+          />
+
+          <WhatsNext forecasts={forecasts} profile={profile} undocumentedTypes={undocumentedTypes} />
+
+          <SystemGrid
+            forecasts={forecasts}
+            systems={systems}
+            undocumentedTypes={undocumentedTypes}
+            profile={profile}
+          />
+
+          <MoneyPlanSection moneyPlan={moneyPlan} hasData={systems.length > 0} />
+
+          <ActNow profile={profile} forecasts={forecasts} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Section 1: Home Hero ────────────────────────────────────────────────────
+function HomeHero({
+  profile,
+  score,
+  documentationPct,
+  documentedCount,
+  totalSystems,
+  isSaved,
+  savingHome,
+  onSaveHome,
+  signedIn,
+  firstUndocumentedType,
+}: {
+  profile: HomeProfile;
+  score: number;
+  documentationPct: number;
+  documentedCount: number;
+  totalSystems: number;
+  isSaved: boolean;
+  savingHome: boolean;
+  onSaveHome: () => void;
+  signedIn: boolean;
+  firstUndocumentedType: SystemType | null;
+}) {
+  const scoreTone = score >= 75 ? 'green' : score >= 50 ? 'orange' : 'red';
+  const docHref = firstUndocumentedType
+    ? `/my-home/document?parcel_id=${encodeURIComponent(profile.parcel_id)}&system_type=${firstUndocumentedType}&address=${encodeURIComponent(profile.address)}`
+    : `/my-home/document?parcel_id=${encodeURIComponent(profile.parcel_id)}&address=${encodeURIComponent(profile.address)}`;
+
+  return (
+    <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
+            Your home
+          </p>
+          <h2
+            className="mt-1 text-3xl font-bold text-od-navy sm:text-4xl"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {profile.address}
+          </h2>
+          <p className="mt-1 text-sm text-od-muted">
+            ZIP {profile.zip}
+            {profile.year_built ? ` · Built ${profile.year_built}` : ''}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-semibold uppercase tracking-wide text-od-muted">
+            Health score
+          </p>
+          <p
+            className={`text-5xl font-bold ${
+              scoreTone === 'green' ? 'text-od-green' : scoreTone === 'orange' ? 'text-od-orange' : 'text-od-red'
+            }`}
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {score}
+            <span className="text-2xl text-od-muted">/100</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="font-semibold text-od-navy">
+            {documentedCount} of {totalSystems} systems documented
+          </span>
+          <span className="text-od-muted">{documentationPct}%</span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-od-track">
+          <div
+            className="h-full rounded-full bg-od-primary transition-all"
+            style={{ width: `${documentationPct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a
+          href={docHref}
+          className="inline-flex items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90"
+        >
+          {firstUndocumentedType
+            ? `Add your ${SYSTEM_LABELS[firstUndocumentedType].toLowerCase()} → +12 pts`
+            : 'Add another system'}
+        </a>
+        {!isSaved && (
+          <button
+            type="button"
+            onClick={onSaveHome}
+            disabled={savingHome}
+            className="inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-2.5 text-sm font-semibold text-od-navy hover:bg-od-primary-soft disabled:opacity-50"
+          >
+            {savingHome ? 'Saving…' : signedIn ? '★ Save my home' : 'Sign up to save'}
+          </button>
+        )}
+        {isSaved && (
+          <span className="inline-flex items-center justify-center rounded-xl border border-od-green/20 bg-od-green-soft px-5 py-2.5 text-sm font-semibold text-od-green">
+            ★ Saved to your homes
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Section 2: What's Next timeline ─────────────────────────────────────────
+function WhatsNext({
+  forecasts,
+  profile,
+  undocumentedTypes,
+}: {
+  forecasts: SystemForecast[];
+  profile: HomeProfile;
+  undocumentedTypes: SystemType[];
+}) {
+  const grouped: Record<TimelineBucket, SystemForecast[]> = { '30d': [], '6m': [], '1y': [], '5y': [] };
+  forecasts.forEach((f) => {
+    const b = bucketFor(f);
+    if (b) grouped[b].push(f);
+  });
+  const hasAnyTimeline = TIMELINE_ORDER.some((b) => grouped[b].length > 0);
+
+  return (
+    <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+          What's next
+        </h3>
+        <DemoBadge label="Forecast logic uses static lifespan tables" />
+      </div>
+      <p
+        className="mt-1 text-2xl font-bold text-od-navy sm:text-3xl"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        Your home's next 5 years
+      </p>
+
+      {!hasAnyTimeline ? (
+        <p className="mt-4 text-sm text-od-muted">
+          Document a system to see when it's likely due. We use industry-standard lifespan ranges +
+          the install date we extract from the nameplate.
+          {undocumentedTypes.length > 0 && (
+            <>
+              {' '}
+              <a
+                href={`/my-home/document?parcel_id=${encodeURIComponent(profile.parcel_id)}&system_type=${undocumentedTypes[0]}&address=${encodeURIComponent(profile.address)}`}
+                className="font-semibold text-od-navy underline"
+              >
+                Start with your {SYSTEM_LABELS[undocumentedTypes[0]].toLowerCase()} →
+              </a>
+            </>
+          )}
+        </p>
+      ) : (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {TIMELINE_ORDER.map((bucket) => (
+            <div key={bucket} className="rounded-2xl border border-od-border bg-gray-50/70 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-od-muted">
+                {TIMELINE_LABELS[bucket]}
+              </p>
+              {grouped[bucket].length === 0 ? (
+                <p className="mt-2 text-xs text-od-subtle">—</p>
+              ) : (
+                <ul className="mt-2 space-y-1">
+                  {grouped[bucket].map((f) => (
+                    <li key={f.system_type} className="text-sm font-semibold text-od-navy">
+                      {SYSTEM_LABELS[f.system_type]}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Section 3: System health grid ───────────────────────────────────────────
+function SystemGrid({
+  forecasts,
+  systems,
+  undocumentedTypes,
+  profile,
+}: {
+  forecasts: SystemForecast[];
+  systems: SystemRecord[];
+  undocumentedTypes: SystemType[];
+  profile: HomeProfile;
+}) {
+  const forecastByType = new Map(forecasts.map((f) => [f.system_type, f]));
+  const recordByType = new Map(systems.map((s) => [s.system_type, s]));
+
+  return (
+    <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+        System health
+      </h3>
+      <p
+        className="mt-1 text-2xl font-bold text-od-navy sm:text-3xl"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        Every part of your home
+      </p>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {ALL_SYSTEM_TYPES.map((type) => {
+          const record = recordByType.get(type);
+          const forecast = forecastByType.get(type);
+          if (!record) {
+            return (
+              <UndocumentedCard
+                key={type}
+                type={type}
+                profile={profile}
+                isNext={undocumentedTypes[0] === type}
+              />
+            );
+          }
+          return (
+            <DocumentedCard key={type} type={type} record={record} forecast={forecast!} />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function UndocumentedCard({
+  type,
+  profile,
+  isNext,
+}: {
+  type: SystemType;
+  profile: HomeProfile;
+  isNext: boolean;
+}) {
+  const href = `/my-home/document?parcel_id=${encodeURIComponent(profile.parcel_id)}&system_type=${type}&address=${encodeURIComponent(profile.address)}`;
+  return (
+    <a
+      href={href}
+      className={`flex flex-col rounded-2xl border-2 border-dashed p-4 transition-colors ${
+        isNext
+          ? 'border-od-primary bg-od-primary-soft hover:bg-od-primary/10'
+          : 'border-od-border bg-gray-50/70 hover:bg-od-primary-soft'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <h4 className="text-lg font-bold text-od-navy">{SYSTEM_LABELS[type]}</h4>
+        <span className="inline-flex items-center rounded-full bg-od-track px-2.5 py-0.5 text-xs font-semibold text-od-muted">
+          Add photo
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-od-muted">
+        Snap the nameplate to unlock age, lifespan, and replacement cost with rebates.
+      </p>
+      <span className="mt-3 text-sm font-semibold text-od-navy">+12 points →</span>
+    </a>
+  );
+}
+
+function DocumentedCard({
+  type,
+  record,
+  forecast,
+}: {
+  type: SystemType;
+  record: SystemRecord;
+  forecast: SystemForecast;
+}) {
+  const statusStyle = {
+    overdue: { label: 'Replace now', chip: 'bg-od-red-soft text-od-red' },
+    due_soon: { label: 'Due soon', chip: 'bg-od-red-soft text-od-red' },
+    watch: { label: 'Watch', chip: 'bg-od-orange-soft text-od-orange' },
+    ok: { label: 'OK', chip: 'bg-od-green-soft text-od-green' },
+    unknown: { label: 'Unknown', chip: 'bg-od-track text-od-muted' },
+  }[forecast.status];
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-od-border bg-white p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="text-lg font-bold text-od-navy">{SYSTEM_LABELS[type]}</h4>
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusStyle.chip}`}>
+          {statusStyle.label}
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-od-navy">
+        {record.make ?? 'Unknown brand'}
+        {record.capacity ? ` · ${record.capacity}` : ''}
+      </p>
+      <p className="mt-1 text-xs text-od-muted">
+        {record.estimated_age_years !== null
+          ? `~${record.estimated_age_years} years old · ~${forecast.expected_lifespan_years}y lifespan`
+          : 'Age unknown'}
+      </p>
+      {record.recall_or_safety_flag && (
+        <p className="mt-2 rounded-md bg-od-red-soft px-2 py-1 text-xs font-semibold text-od-red">
+          ⚠ {record.recall_or_safety_flag}
+        </p>
+      )}
+      {forecast.due_window_months !== null && forecast.due_window_months <= 12 && (
+        <p className="mt-2 text-xs font-semibold text-od-navy">
+          {forecast.upgrade
+            ? `Upgrade to ${forecast.upgrade.label.toLowerCase()}: ${formatUSD(forecast.upgrade.net_cost_usd)} net after rebates`
+            : `Replacement: ${formatUSD(forecast.like_for_like.net_cost_usd)}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Section 4: Money Plan ───────────────────────────────────────────────────
+function MoneyPlanSection({
+  moneyPlan,
+  hasData,
+}: {
+  moneyPlan: ReturnType<typeof computeMoneyPlan>;
+  hasData: boolean;
+}) {
+  return (
+    <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+          Money plan
+        </h3>
+        <DemoBadge label="Static IRA + PG&E + BayREN amounts" />
+      </div>
+      <p
+        className="mt-1 text-2xl font-bold text-od-navy sm:text-3xl"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        What it'll cost — with rebates
+      </p>
+
+      {!hasData ? (
+        <p className="mt-4 text-sm text-od-muted">
+          Document a system to see replacement forecasts and the rebates you qualify for.
+        </p>
+      ) : moneyPlan.items.length === 0 ? (
+        <p className="mt-4 text-sm text-od-muted">
+          Nothing forecast in the next 12 months. Check back as your systems age, or snap more to
+          refine the picture.
+        </p>
+      ) : (
+        <>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-od-border bg-gray-50/70 p-4">
+              <p className="text-xs uppercase text-od-subtle">Sticker price (12 mo)</p>
+              <p className="mt-1 text-2xl font-bold text-od-navy">
+                {formatUSD(moneyPlan.next_12mo_total_usd)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-od-green/30 bg-od-green-soft p-4">
+              <p className="text-xs uppercase text-od-green">After rebates</p>
+              <p className="mt-1 text-2xl font-bold text-od-green">
+                {formatUSD(moneyPlan.next_12mo_with_upgrades_usd)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-od-primary/30 bg-od-primary-soft p-4">
+              <p className="text-xs uppercase text-od-primary">Rebates unlocked</p>
+              <p className="mt-1 text-2xl font-bold text-od-navy">
+                {formatUSD(moneyPlan.total_rebates_unlocked_usd)}
               </p>
             </div>
           </div>
 
-          {/* Save my home CTA — different state for signed-in vs anonymous */}
-          {savedParcels.has(profile.parcel_id) ? (
-            <div className="mt-4 rounded-2xl border border-od-green/20 bg-od-green-soft p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-              <div>
-                <p className="text-sm font-semibold text-od-navy">★ Saved to your homes</p>
-                <p className="mt-1 text-sm text-od-muted">
-                  This home is in your dashboard.
-                </p>
-              </div>
-              <a
-                href="/dashboard"
-                className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-2.5 text-sm font-semibold text-od-navy hover:bg-od-primary-soft sm:mt-0 sm:w-auto"
+          <ul className="mt-5 space-y-3">
+            {moneyPlan.items.map((item) => (
+              <li
+                key={item.system_type}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-od-border bg-white p-4"
               >
-                Open dashboard →
-              </a>
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-od-primary/15 bg-od-cream p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-              <div>
-                <p className="text-sm font-semibold text-od-navy">✨ Save this home to your account</p>
-                <p className="mt-1 text-sm text-od-muted">
-                  Track repairs over time, see provider estimates, revisit your maintenance
-                  history. Free, no spam.
+                <div>
+                  <p className="text-sm font-bold text-od-navy">
+                    {SYSTEM_LABELS[item.system_type]}: {item.label}
+                  </p>
+                  <p className="mt-0.5 text-xs text-od-muted">
+                    Due in ~{item.window_months} months · {formatUSD(item.base_cost_usd)} sticker ·
+                    {item.rebates_unlocked_usd > 0
+                      ? ` ${formatUSD(item.rebates_unlocked_usd)} rebates`
+                      : ' No rebates available'}
+                  </p>
+                </div>
+                <p className="text-lg font-bold text-od-green">
+                  {formatUSD(item.net_cost_usd)} net
                 </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleSaveHome}
-                disabled={savingHome}
-                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
-              >
-                {savingHome ? 'Saving…' : session?.user ? 'Save my home →' : 'Sign up to save →'}
-              </button>
-            </div>
-          )}
+              </li>
+            ))}
+          </ul>
 
-          {/* System health */}
-          <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
-              System health
-            </h3>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {Object.entries(profile.systems).map(([key, system]) => {
-                const style = STATUS_STYLE[system.status] ?? STATUS_STYLE.unknown;
-                const category = SYSTEM_TO_CATEGORY[key];
-                const showCta = category && (system.status === 'due' || system.status === 'watch');
-                return (
-                  <div
-                    key={key}
-                    className="flex flex-col rounded-2xl border border-gray-100 bg-gray-50/70 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-lg font-bold text-od-navy">
-                        {SYSTEM_LABELS[key] ?? key}
-                      </h4>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${style.chip}`}
-                      >
-                        {style.label}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-od-muted">
-                      {system.age !== null ? `~${system.age} years old` : 'Age unknown'}
-                    </p>
-                    <p className="mt-1 text-xs text-od-subtle">{system.basis}</p>
-                    <p className="mt-1 text-xs text-od-subtle">
-                      Confidence: {Math.round(system.confidence * 100)}%
-                    </p>
-                    {showCta && (
-                      <a
-                        href={buildDiagnoseHref(category, profile.zip)}
-                        className="mt-3 inline-flex items-center justify-center rounded-xl bg-od-navy px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-od-navy/90"
-                      >
-                        {CATEGORY_TO_FIND_LABEL[category]} →
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Solar */}
-          <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
-                Solar potential
-              </h3>
-              {profile.solar.source === 'osm+pvgis' && (
-                <span className="rounded-full bg-od-green-soft px-2.5 py-0.5 text-xs font-semibold text-od-green">
-                  Live: OpenStreetMap + PVGIS
-                </span>
-              )}
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-                <p className="text-xs uppercase text-od-subtle">Roof area</p>
-                <p className="mt-1 text-2xl font-bold text-od-navy">
-                  {Math.round(profile.solar.roof_area_m2)} m²
-                </p>
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-                <p className="text-xs uppercase text-od-subtle">Max system</p>
-                <p className="mt-1 text-2xl font-bold text-od-navy">
-                  {profile.solar.max_kwp} kWp
-                </p>
-                <p className="text-xs text-od-muted">
-                  ~{profile.solar.max_panel_count} panels
-                </p>
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-                <p className="text-xs uppercase text-od-subtle">Annual production</p>
-                <p className="mt-1 text-2xl font-bold text-od-navy">
-                  {profile.solar.annual_kwh.toLocaleString()} kWh
-                </p>
-                <p className="text-xs text-od-muted capitalize">
-                  Candidacy: {profile.solar.candidate.rating}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Top needs */}
-          <div className="mt-6 mb-10 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
-              What to handle next
-            </h3>
-            <ol className="mt-4 space-y-3">
-              {profile.top_needs.map((need, idx) => {
-                const category = TRADE_TO_CATEGORY[need.trade];
-                return (
-                  <li
-                    key={need.trade}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-od-navy text-sm font-bold text-white">
-                        {idx + 1}
-                      </span>
-                      <span className="text-base font-bold text-od-navy">
-                        {TRADE_LABELS[need.trade] ?? need.trade}
-                      </span>
-                      <span className="text-xs font-semibold text-od-muted">
-                        score {need.score.toFixed(1)}
-                      </span>
-                    </div>
-                    {category ? (
-                      <a
-                        href={buildDiagnoseHref(category, profile.zip)}
-                        className="inline-flex items-center justify-center rounded-xl bg-od-navy px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-od-navy/90"
-                      >
-                        Get matches →
-                      </a>
-                    ) : (
-                      <span className="text-xs text-od-subtle">No provider category yet</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-            <div className="mt-6">
-              <a
-                href="/diagnose"
-                className="inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-2.5 text-sm font-semibold text-od-navy hover:bg-od-primary-soft"
-              >
-                Diagnose a different problem →
-              </a>
-            </div>
-          </div>
+          <p className="mt-4 text-xs text-od-subtle">
+            Rebate eligibility depends on equipment specs, income, and program funding. We show
+            typical Bay Area amounts; a contractor confirms your final numbers.
+          </p>
         </>
       )}
     </div>
+  );
+}
+
+// ─── Section 5: Act Now ──────────────────────────────────────────────────────
+function ActNow({
+  profile,
+  forecasts,
+}: {
+  profile: HomeProfile;
+  forecasts: SystemForecast[];
+}) {
+  const urgent = forecasts.find(
+    (f) => f.status === 'overdue' || f.status === 'due_soon'
+  );
+  const ctaCategory = urgent ? SYSTEM_TO_CATEGORY[urgent.system_type] : 'plumbing_drainage';
+  const ctaHref = buildDiagnoseHref(ctaCategory, profile.zip);
+  const docHref = `/my-home/document?parcel_id=${encodeURIComponent(profile.parcel_id)}&address=${encodeURIComponent(profile.address)}`;
+
+  return (
+    <div className="mt-6 mb-10 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+        Act now
+      </h3>
+      <p
+        className="mt-1 text-2xl font-bold text-od-navy sm:text-3xl"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        What to do today
+      </p>
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <a
+          href={ctaHref}
+          className="flex flex-col rounded-2xl bg-od-navy p-5 text-white transition-colors hover:bg-od-navy/90"
+        >
+          <span className="text-xs font-semibold uppercase text-white/70">Top priority</span>
+          <span className="mt-1 text-lg font-bold">
+            {urgent
+              ? `Get quotes for your ${SYSTEM_LABELS[urgent.system_type].toLowerCase()}`
+              : 'Get matched with a local pro'}
+          </span>
+          <span className="mt-auto pt-3 text-sm">3 vetted providers, 24 hr →</span>
+        </a>
+        <a
+          href={docHref}
+          className="flex flex-col rounded-2xl border border-od-border bg-white p-5 transition-colors hover:bg-od-primary-soft"
+        >
+          <span className="text-xs font-semibold uppercase text-od-primary">Document more</span>
+          <span className="mt-1 text-lg font-bold text-od-navy">Add another system</span>
+          <span className="mt-auto pt-3 text-sm text-od-muted">+12 pts per system →</span>
+        </a>
+        <a
+          href="/diagnose"
+          className="flex flex-col rounded-2xl border border-od-border bg-white p-5 transition-colors hover:bg-od-primary-soft"
+        >
+          <span className="text-xs font-semibold uppercase text-od-primary">Something else?</span>
+          <span className="mt-1 text-lg font-bold text-od-navy">Diagnose any problem</span>
+          <span className="mt-auto pt-3 text-sm text-od-muted">Photo + AI assessment →</span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function DemoBadge({ label }: { label: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-od-primary-soft px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-od-primary"
+      title={label}
+    >
+      Demo data
+    </span>
   );
 }

@@ -7,6 +7,7 @@ import {
   ALL_SYSTEM_TYPES,
   SYSTEM_LABELS,
   loadHomeRecord,
+  type DiagnosisBrief,
   type SystemRecord,
   type SystemType,
 } from '@/lib/home-record';
@@ -56,8 +57,13 @@ const ZIP_TO_NEIGHBORHOOD: Record<string, string> = {
   '94708': 'Berkeley',
 };
 
-function buildDiagnoseHref(category: string, zip: string): string {
-  const params = new URLSearchParams({ category });
+function buildDiagnoseHref(
+  category: string,
+  zip: string,
+  parcelId: string,
+  address: string
+): string {
+  const params = new URLSearchParams({ category, parcel_id: parcelId, address });
   const n = ZIP_TO_NEIGHBORHOOD[zip];
   if (n) params.set('neighborhood', n);
   return `/diagnose?${params.toString()}`;
@@ -81,20 +87,28 @@ function MyHome() {
   const [savedParcels, setSavedParcels] = useState<Set<string>>(new Set());
   const [savingHome, setSavingHome] = useState(false);
   const [systems, setSystems] = useState<SystemRecord[]>([]);
+  const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
 
-  // Load locally-documented systems for the current parcel.
+  // Load locally-documented systems + briefs for the current parcel.
   useEffect(() => {
     if (!profile) {
       setSystems([]);
+      setBriefs([]);
       return;
     }
-    setSystems(loadHomeRecord(profile.parcel_id).systems);
+    const rec = loadHomeRecord(profile.parcel_id);
+    setSystems(rec.systems);
+    setBriefs(rec.briefs);
   }, [profile]);
 
-  // Re-load when the user comes back from the document page.
+  // Re-load when the user comes back from the document/diagnose page.
   useEffect(() => {
     function onFocus() {
-      if (profile) setSystems(loadHomeRecord(profile.parcel_id).systems);
+      if (profile) {
+        const rec = loadHomeRecord(profile.parcel_id);
+        setSystems(rec.systems);
+        setBriefs(rec.briefs);
+      }
     }
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
@@ -237,6 +251,8 @@ function MyHome() {
             undocumentedTypes={undocumentedTypes}
             profile={profile}
           />
+
+          <RecentConcerns briefs={briefs} profile={profile} />
 
           <MoneyPlanSection moneyPlan={moneyPlan} hasData={systems.length > 0} />
 
@@ -661,7 +677,7 @@ function ActNow({
     (f) => f.status === 'overdue' || f.status === 'due_soon'
   );
   const ctaCategory = urgent ? SYSTEM_TO_CATEGORY[urgent.system_type] : 'plumbing_drainage';
-  const ctaHref = buildDiagnoseHref(ctaCategory, profile.zip);
+  const ctaHref = buildDiagnoseHref(ctaCategory, profile.zip, profile.parcel_id, profile.address);
   const docHref = `/my-home/document?parcel_id=${encodeURIComponent(profile.parcel_id)}&address=${encodeURIComponent(profile.address)}`;
 
   return (
@@ -697,7 +713,7 @@ function ActNow({
           <span className="mt-auto pt-3 text-sm text-od-muted">+12 pts per system →</span>
         </a>
         <a
-          href="/diagnose"
+          href={`/diagnose?parcel_id=${encodeURIComponent(profile.parcel_id)}&address=${encodeURIComponent(profile.address)}`}
           className="flex flex-col rounded-2xl border border-od-border bg-white p-5 transition-colors hover:bg-od-primary-soft"
         >
           <span className="text-xs font-semibold uppercase text-od-primary">Something else?</span>
@@ -710,6 +726,125 @@ function ActNow({
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Recent Concerns (saved briefs) ──────────────────────────────────────────
+const CATEGORY_LABELS: Record<string, string> = {
+  plumbing_drainage: 'Plumbing',
+  gutters_drainage: 'Gutters',
+  landscaping: 'Landscaping',
+  roofing: 'Roofing',
+  electrical: 'Electrical',
+  hvac: 'HVAC',
+  pest_control: 'Pest',
+  handyman: 'Handyman',
+  painting: 'Painting',
+};
+
+const SEVERITY_STYLE: Record<DiagnosisBrief['severity'], string> = {
+  urgent: 'bg-od-red-soft text-od-red',
+  soon: 'bg-od-orange-soft text-od-orange',
+  monitor: 'bg-od-green-soft text-od-green',
+};
+
+function RecentConcerns({
+  briefs,
+  profile,
+}: {
+  briefs: DiagnosisBrief[];
+  profile: HomeProfile;
+}) {
+  if (briefs.length === 0) {
+    return (
+      <div className="mt-6 rounded-3xl border border-dashed border-od-border bg-gray-50/40 p-6 sm:p-8">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+          Recent concerns
+        </h3>
+        <p
+          className="mt-1 text-xl font-bold text-od-navy sm:text-2xl"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Issues you've diagnosed land here
+        </p>
+        <p className="mt-2 text-sm text-od-muted">
+          Diagnose a problem to log it against this home — refer back later, share with a pro, or
+          track what you've decided.
+        </p>
+        <a
+          href={`/diagnose?parcel_id=${encodeURIComponent(profile.parcel_id)}&address=${encodeURIComponent(profile.address)}`}
+          className="mt-4 inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-4 py-2 text-sm font-semibold text-od-navy hover:bg-od-primary-soft"
+        >
+          Start a diagnosis →
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+          Recent concerns
+        </h3>
+        <span className="text-xs text-od-muted">
+          {briefs.length} {briefs.length === 1 ? 'brief' : 'briefs'} saved
+        </span>
+      </div>
+      <p
+        className="mt-1 text-2xl font-bold text-od-navy sm:text-3xl"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        Issues you've diagnosed
+      </p>
+
+      <ul className="mt-5 space-y-3">
+        {briefs.map((brief) => {
+          const savedDate = new Date(brief.saved_at);
+          const reopenHref = `/diagnose?parcel_id=${encodeURIComponent(profile.parcel_id)}&address=${encodeURIComponent(profile.address)}&category=${encodeURIComponent(brief.category)}&neighborhood=${encodeURIComponent(brief.neighborhood)}`;
+          return (
+            <li
+              key={brief.id}
+              className="rounded-2xl border border-od-border bg-white p-4"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SEVERITY_STYLE[brief.severity]}`}
+                  >
+                    {brief.severity.toUpperCase()}
+                  </span>
+                  <span className="text-xs font-semibold uppercase text-od-muted">
+                    {CATEGORY_LABELS[brief.category] ?? brief.category}
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${brief.diyOrPro === 'diy' ? 'bg-od-primary-soft text-od-primary' : 'bg-od-navy/10 text-od-navy'}`}
+                  >
+                    {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
+                  </span>
+                </div>
+                <span className="text-xs text-od-subtle">
+                  {savedDate.toLocaleDateString()}
+                </span>
+              </div>
+              <p className="mt-2 text-base font-bold text-od-navy">{brief.issue}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-od-muted">{brief.scopeOfWork}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="text-od-muted">
+                  Fair range: <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
+                </span>
+                <a
+                  href={reopenHref}
+                  className="font-semibold text-od-navy underline hover:text-od-primary"
+                >
+                  Re-open →
+                </a>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function DemoBadge({ label }: { label: string }) {
   return (
     <span

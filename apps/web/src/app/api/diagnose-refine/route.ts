@@ -11,6 +11,7 @@ type DiagnosisResult = {
   diyOrPro: 'diy' | 'pro';
   explanation: string;
   confidence: number;
+  diyShoppingQuery: string;
 };
 
 /**
@@ -98,10 +99,12 @@ Return ONLY valid JSON, no markdown:
   "fairPriceRange": "...",
   "diyOrPro": "diy" | "pro",
   "explanation": "2-3 sentences. Explicitly mention how the answers shaped your refinement.",
-  "confidence": 90
+  "confidence": 90,
+  "diyShoppingQuery": "P-trap kit 1.5 inch"
 }
 
 recommendedCategory must be one of: plumbing_drainage, gutters_drainage, landscaping, roofing, electrical, hvac, pest_control, handyman, painting
+diyShoppingQuery: 2-6 word Amazon search keywords for the DIY part(s) for this repair. ALWAYS populate, even when diyOrPro=pro (useful as a temporary fix or supplement). Refine from the first-pass query using what the answers revealed (size, location, severity).
 Do NOT include clarifyingQuestions — refinement is the final answer.`;
 
     const requestBody = {
@@ -162,6 +165,9 @@ Do NOT include clarifyingQuestions — refinement is the final answer.`;
     }
 
     if (typeof refined.confidence !== 'number') refined.confidence = 90;
+    if (typeof refined.diyShoppingQuery !== 'string' || !refined.diyShoppingQuery.trim()) {
+      refined.diyShoppingQuery = `${refined.recommendedCategory.replace(/_/g, ' ')} repair kit`;
+    }
 
     return Response.json(refined);
   } catch (error) {

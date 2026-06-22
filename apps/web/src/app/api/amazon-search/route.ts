@@ -8,22 +8,39 @@ type Bucket = {
   error: string | null;
 };
 
+type RequestBody = {
+  // Nameplate path — extracted system fields drive two buckets (extend + replace).
+  extracted?: Extracted;
+  // Diagnose path — raw Amazon keywords drive a single bucket.
+  keywords?: string;
+  searchIndex?: string;
+};
+
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { extracted?: Extracted };
-    const extracted = body.extracted;
-    if (!extracted?.system_type) {
-      return Response.json({ error: 'extracted.system_type is required' }, { status: 400 });
+    const body = (await request.json()) as RequestBody;
+
+    if (body.keywords && body.keywords.trim()) {
+      const single = await runBucket({
+        keywords: body.keywords.trim(),
+        searchIndex: body.searchIndex || 'All',
+      });
+      return Response.json({ single });
     }
 
-    const queries = buildQueries(extracted);
+    if (body.extracted?.system_type) {
+      const queries = buildQueries(body.extracted);
+      const [extend, replace] = await Promise.all([
+        runBucket(queries.extend),
+        runBucket(queries.replace),
+      ]);
+      return Response.json({ extend, replace });
+    }
 
-    const [extend, replace] = await Promise.all([
-      runBucket(queries.extend),
-      runBucket(queries.replace),
-    ]);
-
-    return Response.json({ extend, replace });
+    return Response.json(
+      { error: 'Provide either `keywords` or `extracted.system_type`.' },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('[/api/amazon-search error]', error);
     return Response.json({ error: 'Failed to fetch shopping options' }, { status: 500 });

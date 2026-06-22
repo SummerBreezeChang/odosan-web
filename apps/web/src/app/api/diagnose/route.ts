@@ -19,6 +19,7 @@ type DiagnosisResult = {
   explanation: string;
   confidence: number; // 0-100
   clarifyingQuestions: ClarifyingQuestion[];
+  diyShoppingQuery: string; // Amazon search keywords for DIY parts (always populated)
 };
 
 export async function POST(request: NextRequest) {
@@ -81,7 +82,8 @@ Return ONLY valid JSON in exactly this format, with no markdown or code blocks:
     { "id": "q1", "question": "Is the stain wet right now, or dry?", "type": "yesno" },
     { "id": "q2", "question": "How long ago did you first notice this?", "type": "select", "options": ["This week", "1-4 weeks ago", "1-6 months", "Over 6 months", "Unsure"] },
     { "id": "q3", "question": "Briefly — what's directly above or behind this spot?", "type": "text" }
-  ]
+  ],
+  "diyShoppingQuery": "P-trap kit 1.5 inch"
 }
 
 severity must be one of: urgent, soon, monitor
@@ -89,7 +91,16 @@ recommendedCategory must be one of: plumbing_drainage, gutters_drainage, landsca
 diyOrPro must be one of: diy, pro
 confidence must be 0-100 integer
 clarifyingQuestions must be 0-3 items; use [] only if your confidence is already 90+
-Each question.type must be one of: text, yesno, select. If type=select, include options[]. Keep each question short and answerable in 5-15 seconds.`;
+Each question.type must be one of: text, yesno, select. If type=select, include options[]. Keep each question short and answerable in 5-15 seconds.
+
+diyShoppingQuery: ALWAYS populate (even when diyOrPro=pro). 2-6 word Amazon search keywords for the part(s) a handy homeowner would buy to attempt or supplement this repair. Be specific: brand-agnostic, include the relevant size/type/material when inferable. Examples:
+  - leaking P-trap → "P-trap kit 1.5 inch"
+  - dripping faucet → "kitchen faucet cartridge replacement"
+  - clogged shower drain → "drain snake auger 25 foot"
+  - tripping breaker → "20 amp circuit breaker"
+  - dirty HVAC filter → "MERV 11 furnace filter"
+  - roof flashing leak → "roof sealant flashing repair kit"
+When the issue truly has no DIY product (e.g. structural roof failure), return the closest preventive/temporary fix (e.g. "emergency roof tarp 20x30").`;
 
     const requestBody = {
       contents: [
@@ -159,6 +170,9 @@ Each question.type must be one of: text, yesno, select. If type=select, include 
     // Defensive defaults for optional fields that older clients might miss
     if (typeof diagnosis.confidence !== 'number') diagnosis.confidence = 70;
     if (!Array.isArray(diagnosis.clarifyingQuestions)) diagnosis.clarifyingQuestions = [];
+    if (typeof diagnosis.diyShoppingQuery !== 'string' || !diagnosis.diyShoppingQuery.trim()) {
+      diagnosis.diyShoppingQuery = `${diagnosis.recommendedCategory.replace(/_/g, ' ')} repair kit`;
+    }
 
     return Response.json(diagnosis);
   } catch (error) {

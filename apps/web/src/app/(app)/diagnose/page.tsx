@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { saveBrief } from '@/lib/home-record';
 
 type Step =
   | 'intake'
@@ -33,7 +34,25 @@ type DiagnosisResult = {
   explanation: string;
   confidence?: number;
   clarifyingQuestions?: ClarifyingQuestion[];
+  diyShoppingQuery?: string;
 };
+
+type AmazonProduct = {
+  asin: string;
+  title: string;
+  url: string;
+  image: string | null;
+  price: string | null;
+  priceAmount: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+};
+
+type ShoppingBucket = {
+  query: string;
+  products: AmazonProduct[];
+  error: string | null;
+} | null;
 
 type Provider = {
   provider_id: string;
@@ -99,6 +118,13 @@ function DiagnoseInner() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [firstPass, setFirstPass] = useState<DiagnosisResult | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [shopping, setShopping] = useState<ShoppingBucket>(null);
+  const [shoppingLoading, setShoppingLoading] = useState(false);
+  const [savedBriefId, setSavedBriefId] = useState<string | null>(null);
+  const [savingBrief, setSavingBrief] = useState(false);
+
+  const parcelId = searchParams.get('parcel_id');
+  const homeAddress = searchParams.get('address');
 
   // Pre-fill from URL params when arriving via /my-home's per-trade CTAs.
   // Only fires once and only if the params match our known options, so users
@@ -109,6 +135,47 @@ function DiagnoseInner() {
     const n = searchParams.get('neighborhood');
     if (n && neighborhoods.includes(n)) setNeighborhood(n);
   }, [searchParams]);
+
+  // Fetch Amazon DIY products as soon as a diagnosis exists.
+  async function fetchShoppingForBrief(d: DiagnosisResult) {
+    if (!d.diyShoppingQuery) return;
+    setShoppingLoading(true);
+    try {
+      const res = await fetch('/api/amazon-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: d.diyShoppingQuery }),
+      });
+      const data = await res.json();
+      if (res.ok && data.single) setShopping(data.single);
+    } catch {
+      // Non-fatal — the rest of the result screen still works.
+    } finally {
+      setShoppingLoading(false);
+    }
+  }
+
+  function handleSaveBrief() {
+    if (!diagnosis || !parcelId) return;
+    setSavingBrief(true);
+    try {
+      const saved = saveBrief(parcelId, {
+        category: diagnosis.recommendedCategory,
+        neighborhood,
+        issue: diagnosis.issue,
+        severity: diagnosis.severity,
+        scopeOfWork: diagnosis.scopeOfWork,
+        fairPriceRange: diagnosis.fairPriceRange,
+        diyOrPro: diagnosis.diyOrPro,
+        explanation: diagnosis.explanation,
+        confidence: diagnosis.confidence ?? 0,
+        diyShoppingQuery: diagnosis.diyShoppingQuery ?? '',
+      });
+      setSavedBriefId(saved.id);
+    } finally {
+      setSavingBrief(false);
+    }
+  }
 
   const stripExifAndResize = async (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -217,6 +284,7 @@ function DiagnoseInner() {
         setDiagnosis(result);
         await loadProvidersFor(result.recommendedCategory);
         setStep('result');
+        void fetchShoppingForBrief(result);
       }
     } catch (error) {
       console.error('Error during diagnosis:', error);
@@ -264,6 +332,7 @@ function DiagnoseInner() {
       setDiagnosis(refined);
       await loadProvidersFor(refined.recommendedCategory);
       setStep('result');
+      void fetchShoppingForBrief(refined);
     } catch (error) {
       console.error('Error during refine:', error);
       alert('Failed to refine. Showing first-pass diagnosis instead.');
@@ -272,6 +341,7 @@ function DiagnoseInner() {
         setDiagnosis(firstPass);
         await loadProvidersFor(firstPass.recommendedCategory);
         setStep('result');
+        void fetchShoppingForBrief(firstPass);
       } else {
         setStep('intake');
       }
@@ -330,6 +400,9 @@ function DiagnoseInner() {
     setSelectedProvider('');
     setFirstPass(null);
     setAnswers({});
+    setShopping(null);
+    setShoppingLoading(false);
+    setSavedBriefId(null);
   };
 
   const allClarifyingAnswered =
@@ -543,13 +616,37 @@ function DiagnoseInner() {
             </div>
           </div>
 
-          <button
-            onClick={handleViewMatches}
-            className="w-full bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-          >
-            View matched providers
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          {/* Fork: DIY and Pro paths, recommended leads — both reachable. */}
+          {diagnosis.diyOrPro === 'diy' ? (
+            <>
+              <DiySection
+                shopping={shopping}
+                loading={shoppingLoading}
+                query={diagnosis.diyShoppingQuery ?? ''}
+                primary
+              />
+              <ProSecondary onClick={handleViewMatches} providerCount={providers.length} />
+            </>
+          ) : (
+            <>
+              <ProPrimary onClick={handleViewMatches} providerCount={providers.length} />
+              <DiySection
+                shopping={shopping}
+                loading={shoppingLoading}
+                query={diagnosis.diyShoppingQuery ?? ''}
+                primary={false}
+              />
+            </>
+          )}
+
+          {/* Save the brief to the home record. */}
+          <SaveBriefBanner
+            parcelId={parcelId}
+            homeAddress={homeAddress}
+            savedBriefId={savedBriefId}
+            saving={savingBrief}
+            onSave={handleSaveBrief}
+          />
         </div>
       </div>
     );
@@ -833,6 +930,197 @@ function DiagnoseInner() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Result-screen sub-components ────────────────────────────────────────────
+
+function DiySection({
+  shopping,
+  loading,
+  query,
+  primary,
+}: {
+  shopping: ShoppingBucket;
+  loading: boolean;
+  query: string;
+  primary: boolean;
+}) {
+  const containerClass = primary
+    ? 'mb-4 rounded-2xl border border-od-primary/30 bg-od-primary-soft p-5'
+    : 'mb-4 rounded-2xl border border-od-border bg-white p-5';
+  return (
+    <div className={containerClass}>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${primary ? 'text-od-primary' : 'text-od-muted'}`}>
+            {primary ? 'Recommended · do it yourself' : 'Or — supplies you can use'}
+          </p>
+          <h3 className="mt-1 text-lg font-bold text-od-navy">
+            {primary ? 'Fix it yourself' : 'DIY parts'}
+          </h3>
+        </div>
+        {query && <p className="text-[11px] text-od-subtle">Search: “{query}”</p>}
+      </div>
+
+      {loading && <p className="text-sm text-od-muted">Loading parts on Amazon…</p>}
+
+      {!loading && shopping?.error && (
+        <p className="text-xs text-od-red">Amazon error: {shopping.error}</p>
+      )}
+
+      {!loading && shopping && shopping.products.length === 0 && !shopping.error && (
+        <p className="text-sm text-od-muted">No matching parts found.</p>
+      )}
+
+      {!loading && shopping && shopping.products.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {shopping.products.slice(0, 3).map((p) => (
+              <a
+                key={p.asin}
+                href={p.url}
+                target="_blank"
+                rel="noopener nofollow sponsored"
+                className="flex flex-col rounded-xl border border-od-border bg-white p-3 transition-colors hover:border-od-primary"
+              >
+                {p.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt="" className="mx-auto h-28 object-contain" loading="lazy" />
+                )}
+                <p className="mt-2 line-clamp-3 text-sm font-semibold text-od-navy">{p.title}</p>
+                <div className="mt-auto flex items-baseline justify-between pt-2">
+                  <span className="text-sm font-bold text-od-navy">{p.price ?? '—'}</span>
+                  {p.rating !== null && (
+                    <span className="text-[11px] text-od-muted">
+                      ★ {p.rating.toFixed(1)}
+                    </span>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-od-subtle">
+            As an Amazon Associate, Odosan earns from qualifying purchases.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProPrimary({
+  onClick,
+  providerCount,
+}: {
+  onClick: () => void;
+  providerCount: number;
+}) {
+  return (
+    <div className="mb-4 rounded-2xl border border-od-primary/30 bg-od-primary-soft p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
+        Recommended · hire a pro
+      </p>
+      <h3 className="mt-1 text-lg font-bold text-od-navy">
+        {providerCount > 0
+          ? `${providerCount} vetted ${providerCount === 1 ? 'pro' : 'pros'} matched`
+          : 'Get matched with a local pro'}
+      </h3>
+      <p className="mt-1 text-sm text-od-muted">
+        We send your brief to the pros; they reply with quotes inside 24 hours.
+      </p>
+      <button
+        onClick={onClick}
+        className="mt-4 inline-flex items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90"
+      >
+        View matched providers <ChevronRight className="ml-1 w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+function ProSecondary({
+  onClick,
+  providerCount,
+}: {
+  onClick: () => void;
+  providerCount: number;
+}) {
+  return (
+    <div className="mb-4 rounded-2xl border border-od-border bg-white p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-od-muted">
+        Or — get a pro quote
+      </p>
+      <h3 className="mt-1 text-lg font-bold text-od-navy">Rather have a pro do it?</h3>
+      <p className="mt-1 text-sm text-od-muted">
+        {providerCount > 0
+          ? `We've already matched ${providerCount} vetted ${providerCount === 1 ? 'pro' : 'pros'} in your area.`
+          : 'Send your brief to local pros for quotes.'}
+      </p>
+      <button
+        onClick={onClick}
+        className="mt-3 inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-2 text-sm font-semibold text-od-navy hover:bg-od-primary-soft"
+      >
+        View matched providers <ChevronRight className="ml-1 w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+function SaveBriefBanner({
+  parcelId,
+  homeAddress,
+  savedBriefId,
+  saving,
+  onSave,
+}: {
+  parcelId: string | null;
+  homeAddress: string | null;
+  savedBriefId: string | null;
+  saving: boolean;
+  onSave: () => void;
+}) {
+  if (!parcelId) {
+    return (
+      <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 px-4 py-3 text-xs text-od-muted">
+        Tip: Start at <a href="/my-home" className="font-semibold text-od-navy underline">My home</a> to save concerns to a specific home for later.
+      </div>
+    );
+  }
+
+  if (savedBriefId) {
+    return (
+      <div className="mt-2 rounded-xl border border-od-green/20 bg-od-green-soft p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <p className="text-sm font-semibold text-od-green">
+          ✓ Saved to your home record.
+        </p>
+        <a
+          href={`/my-home?address=${encodeURIComponent(homeAddress ?? '')}`}
+          className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
+        >
+          View in My Home →
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+      <div>
+        <p className="text-sm font-semibold text-od-navy">Save this brief to your home record</p>
+        <p className="mt-1 text-xs text-od-muted">
+          Refer back later, share with a pro, or track what you've decided.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving}
+        className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
+      >
+        {saving ? 'Saving…' : 'Save to My Home'}
+      </button>
     </div>
   );
 }

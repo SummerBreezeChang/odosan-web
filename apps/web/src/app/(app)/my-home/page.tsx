@@ -1,6 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import {
+  Bolt,
+  Bug,
+  CloudRain,
+  Droplet,
+  Hammer,
+  Home,
+  Paintbrush,
+  Trees,
+  Wind,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react';
 import { useSession } from '@/lib/auth-client';
 import {
   SYSTEM_LABELS,
@@ -9,6 +22,7 @@ import {
   migrateLocalToRemote,
   type DiagnosisBrief,
   type SystemRecord,
+  type SystemType,
 } from '@/lib/home-record';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -21,6 +35,25 @@ const CATEGORY_LABELS: Record<string, string> = {
   pest_control: 'Pest',
   handyman: 'Handyman',
   painting: 'Painting',
+};
+
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  plumbing_drainage: Droplet,
+  gutters_drainage: CloudRain,
+  landscaping: Trees,
+  roofing: Home,
+  electrical: Bolt,
+  hvac: Wind,
+  pest_control: Bug,
+  handyman: Wrench,
+  painting: Paintbrush,
+};
+
+const SYSTEM_ICONS: Record<SystemType, LucideIcon> = {
+  water_heater: Droplet,
+  hvac: Wind,
+  electrical_panel: Bolt,
+  roof_invoice: Home,
 };
 
 const SEVERITY_STYLE: Record<DiagnosisBrief['severity'], string> = {
@@ -204,63 +237,81 @@ function EmptyCard({
 
 function BriefCard({ brief }: { brief: DiagnosisBrief }) {
   const savedDate = new Date(brief.saved_at);
+  const Icon = CATEGORY_ICONS[brief.category] ?? Wrench;
   return (
-    <li className="rounded-2xl border border-od-border bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SEVERITY_STYLE[brief.severity]}`}
-        >
-          {brief.severity.toUpperCase()}
-        </span>
-        <span className="text-xs font-semibold uppercase text-od-muted">
-          {CATEGORY_LABELS[brief.category] ?? brief.category}
-        </span>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-            brief.diyOrPro === 'diy'
-              ? 'bg-od-primary-soft text-od-primary'
-              : 'bg-od-navy/10 text-od-navy'
-          }`}
-        >
-          {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
-        </span>
-        <span className="ml-auto text-xs text-od-subtle">{savedDate.toLocaleDateString()}</span>
+    <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4 shadow-sm">
+      <div
+        aria-hidden
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
+      >
+        <Icon className="h-5 w-5" />
       </div>
-      <p className="mt-2 text-base font-bold text-od-navy">{brief.issue}</p>
-      <p className="mt-1 line-clamp-2 text-sm text-od-muted">{brief.scopeOfWork}</p>
-      <p className="mt-2 text-xs text-od-muted">
-        Fair range: <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
-      </p>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SEVERITY_STYLE[brief.severity]}`}
+          >
+            {brief.severity.toUpperCase()}
+          </span>
+          <span className="text-xs font-semibold uppercase text-od-muted">
+            {CATEGORY_LABELS[brief.category] ?? brief.category}
+          </span>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              brief.diyOrPro === 'diy'
+                ? 'bg-od-primary-soft text-od-primary'
+                : 'bg-od-navy/10 text-od-navy'
+            }`}
+          >
+            {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
+          </span>
+          <span className="ml-auto text-xs text-od-subtle">{savedDate.toLocaleDateString()}</span>
+        </div>
+        <p className="mt-2 text-base font-bold text-od-navy">{brief.issue}</p>
+        <p className="mt-1 line-clamp-2 text-sm text-od-muted">{brief.scopeOfWork}</p>
+        <p className="mt-2 text-xs text-od-muted">
+          Fair range: <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
+        </p>
+      </div>
     </li>
   );
 }
 
 function SystemCard({ system }: { system: SystemRecord }) {
+  const Icon = SYSTEM_ICONS[system.system_type] ?? Hammer;
   return (
-    <li className="rounded-2xl border border-od-border bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-base font-bold text-od-navy">{SYSTEM_LABELS[system.system_type]}</p>
-        <span className="text-xs text-od-subtle">
-          Scanned {new Date(system.documented_at).toLocaleDateString()}
-        </span>
+    <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4 shadow-sm">
+      <div
+        aria-hidden
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
+      >
+        <Icon className="h-5 w-5" />
       </div>
-      <p className="mt-1 text-sm text-od-navy">
-        {system.make ?? 'Unknown brand'}
-        {system.capacity ? ` · ${system.capacity}` : ''}
-      </p>
-      {system.estimated_age_years !== null && (
-        <p className="mt-1 text-xs text-od-muted">
-          ~{system.estimated_age_years} years old
-          {system.expected_lifespan_years
-            ? ` · ~${system.expected_lifespan_years}y typical lifespan`
-            : ''}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-base font-bold text-od-navy">{SYSTEM_LABELS[system.system_type]}</p>
+          <span className="text-xs text-od-subtle">
+            Scanned {new Date(system.documented_at).toLocaleDateString()}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-od-navy">
+          {system.make ?? 'Unknown brand'}
+          {system.capacity ? ` · ${system.capacity}` : ''}
         </p>
-      )}
-      {system.recall_or_safety_flag && (
-        <p className="mt-2 rounded-md bg-od-red-soft px-2 py-1 text-xs font-semibold text-od-red">
-          ⚠ {system.recall_or_safety_flag}
-        </p>
-      )}
+        {system.estimated_age_years !== null && (
+          <p className="mt-1 text-xs text-od-muted">
+            ~{system.estimated_age_years} years old
+            {system.expected_lifespan_years
+              ? ` · ~${system.expected_lifespan_years}y typical lifespan`
+              : ''}
+          </p>
+        )}
+        {system.recall_or_safety_flag && (
+          <p className="mt-2 rounded-md bg-od-red-soft px-2 py-1 text-xs font-semibold text-od-red">
+            ⚠ {system.recall_or_safety_flag}
+          </p>
+        )}
+      </div>
     </li>
   );
 }

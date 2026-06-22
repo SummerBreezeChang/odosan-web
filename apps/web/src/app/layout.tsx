@@ -4,6 +4,7 @@ import './global.css';
 import { Providers } from './providers';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
+import { BottomNav } from '@/components/BottomNav';
 
 export const metadata: Metadata = {
   title: "Odosan — Your home's dad",
@@ -62,8 +63,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-screen flex-col bg-od-bg">
         <Providers>
           <SiteHeader />
-          <main className="flex-1">{children}</main>
+          {/* Bottom padding reserves space for the persistent BottomNav strip so
+              page content doesn't sit under it on mobile. */}
+          <main className="flex-1 pb-24 sm:pb-28">{children}</main>
           <SiteFooter />
+          <BottomNav />
         </Providers>
       </body>
     </html>

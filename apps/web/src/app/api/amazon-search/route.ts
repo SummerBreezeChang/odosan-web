@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { searchItems, type AmazonProduct } from '@/lib/amazon-paapi';
+import { searchItems, type AmazonProduct } from '@/lib/amazon-creators';
 import { buildQueries, type Extracted } from '@/lib/amazon-queries';
 
 type Bucket = {

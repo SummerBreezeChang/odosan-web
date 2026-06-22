@@ -110,7 +110,12 @@ function classifyError(msg: string): string {
   if (msg.includes('Token fetch failed (400)')) return 'token_request_malformed_or_wrong_scope';
   if (msg.includes('Token fetch failed')) return 'token_fetch_other';
   if (msg.includes('Token response was not JSON')) return 'token_endpoint_returned_html';
-  if (/AssociateNotEligible/i.test(msg)) return 'awaiting_eligibility_or_sales_threshold';
+  if (
+    /AssociateNotEligible/i.test(msg) ||
+    /does not (currently )?meet the eligibility requirements/i.test(msg)
+  ) {
+    return 'awaiting_eligibility_or_sales_threshold';
+  }
   if (/TooManyRequests|429/i.test(msg)) return 'rate_limited';
   if (msg.includes('Creators API 401')) return 'api_unauthorized_token_invalid';
   if (msg.includes('Creators API 403')) return 'api_forbidden_check_partner_tag_or_region';
@@ -120,7 +125,10 @@ function classifyError(msg: string): string {
 }
 
 function hintForError(msg: string): string {
-  if (/AssociateNotEligible/i.test(msg)) {
+  if (
+    /AssociateNotEligible/i.test(msg) ||
+    /does not (currently )?meet the eligibility requirements/i.test(msg)
+  ) {
     return 'Expected during 48-hour activation window. Also fires if account has <10 qualifying sales in past 30 days. The wiring is correct; this is an Amazon-side gate. Wait it out or hit the 10-sales bar.';
   }
   if (msg.includes('Token fetch failed (401)')) {

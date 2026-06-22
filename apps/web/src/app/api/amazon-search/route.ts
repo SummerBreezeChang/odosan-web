@@ -5,17 +5,30 @@ import { buildQueries, type Extracted } from '@/lib/amazon-queries';
 type Bucket = {
   query: string;
   products: AmazonProduct[];
+  searchUrl: string | null; // affiliate-tagged search fallback (always set when partner tag exists)
   error: string | null;
 };
 
 type RequestBody = {
-  // Nameplate path — extracted system fields drive two buckets (extend + replace).
   extracted?: Extracted;
-  // Diagnose path — raw Amazon keywords drive a single bucket.
   keywords?: string;
   searchIndex?: string;
 };
 
+/**
+ * POST /api/amazon-search
+ *
+ * Tries the Amazon Creators API first (real product grid). If Amazon
+ * returns the eligibility-gate error ('Your account does not currently
+ * meet the eligibility requirements' / AssociateNotEligible), silently
+ * falls back to an affiliate-tagged Amazon search URL — the UI renders a
+ * 'Find on Amazon →' CTA instead of the empty grid. Same partner-tag
+ * commission on click-throughs, no product grid.
+ *
+ * When the Amazon account ever generates 10+ qualifying sales in a 30-day
+ * window, the next request auto-detects success and the product grid
+ * renders without any code change.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as RequestBody;
@@ -47,16 +60,38 @@ export async function POST(request: NextRequest) {
   }
 }
 
+function buildAmazonSearchUrl(keywords: string): string | null {
+  const tag = process.env.AMAZON_ASSOCIATE_TAG;
+  const marketplace =
+    process.env.AMAZON_MARKETPLACE || 'www.amazon.com';
+  if (!tag) return null;
+  const params = new URLSearchParams({ k: keywords, tag });
+  return `https://${marketplace}/s?${params.toString()}`;
+}
+
+function isEligibilityError(msg: string): boolean {
+  return (
+    /AssociateNotEligible/i.test(msg) ||
+    /does not (currently )?meet the eligibility requirements/i.test(msg)
+  );
+}
+
 async function runBucket(
   q: { keywords: string; searchIndex: string } | null
 ): Promise<Bucket | null> {
   if (!q) return null;
+  const searchUrl = buildAmazonSearchUrl(q.keywords);
   try {
     const products = await searchItems(q.keywords, 5, q.searchIndex);
-    return { query: q.keywords, products, error: null };
+    return { query: q.keywords, products, searchUrl, error: null };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown';
+    // Silent fallback for the expected eligibility-gate case — UI shows
+    // the deep-link CTA instead of an error banner.
+    if (isEligibilityError(msg)) {
+      return { query: q.keywords, products: [], searchUrl, error: null };
+    }
     console.error('[amazon-search bucket failed]', q.keywords, msg);
-    return { query: q.keywords, products: [], error: msg };
+    return { query: q.keywords, products: [], searchUrl, error: msg };
   }
 }

@@ -37,6 +37,7 @@ type AmazonProduct = {
 type Bucket = {
   query: string;
   products: AmazonProduct[];
+  searchUrl: string | null;
   error: string | null;
 } | null;
 
@@ -408,7 +409,10 @@ function ShoppingPanel({
   }
   if (!shopping) return null;
   const hasAny =
-    (shopping.extend?.products.length ?? 0) > 0 || (shopping.replace?.products.length ?? 0) > 0;
+    (shopping.extend?.products.length ?? 0) > 0 ||
+    (shopping.replace?.products.length ?? 0) > 0 ||
+    !!shopping.extend?.searchUrl ||
+    !!shopping.replace?.searchUrl;
   if (!hasAny && !shopping.extend?.error && !shopping.replace?.error) return null;
 
   return (
@@ -475,7 +479,12 @@ function Bucket({
 }: {
   title: string;
   subtitle?: string;
-  bucket: { query: string; products: AmazonProduct[]; error: string | null };
+  bucket: {
+    query: string;
+    products: AmazonProduct[];
+    searchUrl: string | null;
+    error: string | null;
+  };
   compact?: boolean;
 }) {
   return (
@@ -490,7 +499,19 @@ function Bucket({
         </div>
       )}
 
-      {bucket.products.length === 0 && !bucket.error && (
+      {bucket.products.length === 0 && !bucket.error && bucket.searchUrl && (
+        <a
+          href={bucket.searchUrl}
+          target="_blank"
+          rel="noopener nofollow sponsored"
+          className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-od-border bg-white px-4 py-3 transition-colors hover:border-od-primary"
+        >
+          <p className="text-sm font-semibold text-od-navy">🛒 Find on Amazon</p>
+          <span aria-hidden className="text-od-primary">→</span>
+        </a>
+      )}
+
+      {bucket.products.length === 0 && !bucket.error && !bucket.searchUrl && (
         <p className="mt-3 text-xs text-od-subtle">No products returned.</p>
       )}
 

@@ -51,6 +51,7 @@ type AmazonProduct = {
 type ShoppingBucket = {
   query: string;
   products: AmazonProduct[];
+  searchUrl: string | null;
   error: string | null;
 } | null;
 
@@ -968,9 +969,36 @@ function DiySection({
         <p className="text-xs text-od-red">Amazon error: {shopping.error}</p>
       )}
 
-      {!loading && shopping && shopping.products.length === 0 && !shopping.error && (
-        <p className="text-sm text-od-muted">No matching parts found.</p>
-      )}
+      {!loading &&
+        shopping &&
+        shopping.products.length === 0 &&
+        !shopping.error &&
+        shopping.searchUrl && (
+          <a
+            href={shopping.searchUrl}
+            target="_blank"
+            rel="noopener nofollow sponsored"
+            className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-od-border bg-white px-4 py-4 transition-colors hover:border-od-primary"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-od-navy">
+                🛒 Find these parts on Amazon
+              </p>
+              <p className="mt-0.5 truncate text-xs text-od-muted">
+                Search: "{shopping.query}"
+              </p>
+            </div>
+            <span aria-hidden className="shrink-0 text-od-primary">→</span>
+          </a>
+        )}
+
+      {!loading &&
+        shopping &&
+        shopping.products.length === 0 &&
+        !shopping.error &&
+        !shopping.searchUrl && (
+          <p className="text-sm text-od-muted">No matching parts found.</p>
+        )}
 
       {!loading && shopping && shopping.products.length > 0 && (
         <>
@@ -1003,6 +1031,12 @@ function DiySection({
             As an Amazon Associate, Odosan earns from qualifying purchases.
           </p>
         </>
+      )}
+
+      {!loading && shopping && shopping.products.length === 0 && shopping.searchUrl && (
+        <p className="mt-3 text-[11px] text-od-subtle">
+          As an Amazon Associate, Odosan earns from qualifying purchases.
+        </p>
       )}
     </div>
   );

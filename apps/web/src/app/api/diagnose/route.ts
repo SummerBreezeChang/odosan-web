@@ -163,7 +163,7 @@ When the issue truly has no DIY product (e.g. structural roof failure), return t
           temperature: 0.3,
           topK: 32,
           topP: 1,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json',
         },
       };

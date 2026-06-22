@@ -178,7 +178,7 @@ expected_lifespan_years follows the typical ranges in the guidance above.`;
           temperature: 0.1,
           topK: 32,
           topP: 1,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json',
         },
       };

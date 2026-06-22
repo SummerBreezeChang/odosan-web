@@ -200,6 +200,21 @@ expected_lifespan_years follows the typical ranges in the guidance above.`;
       }
       const geminiData = await geminiResponse.json();
       responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!(responseText ?? "").trim()) {
+        const finishReason = geminiData.candidates?.[0]?.finishReason;
+        console.error('[GEMINI NAMEPLATE EMPTY RESPONSE]', {
+          finishReason,
+          raw: JSON.stringify(geminiData).slice(0, 500),
+        });
+        return Response.json(
+          {
+            error: finishReason
+              ? `AI provider returned no content (finishReason: ${finishReason})`
+              : 'AI provider returned no content',
+          },
+          { status: 502 }
+        );
+      }
       aiProvider = 'gemini';
     }
 

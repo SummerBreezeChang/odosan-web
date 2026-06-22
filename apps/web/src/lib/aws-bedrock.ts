@@ -15,7 +15,12 @@ import {
  *   AWS_SECRET_ACCESS_KEY
  */
 
-const DEFAULT_MODEL_ID = 'anthropic.claude-sonnet-4-6';
+// Sonnet 4.6 on Bedrock requires the cross-region inference profile, not the
+// bare foundation model ID — direct invocation of `anthropic.claude-sonnet-4-6`
+// returns: "Invocation of model ID ... with on-demand throughput isn't supported."
+// Use the US inference profile by default; override via BEDROCK_MODEL_ID if
+// AWS publishes a different profile ID for your account.
+const DEFAULT_MODEL_ID = 'us.anthropic.claude-sonnet-4-6-v1:0';
 
 let cachedClient: BedrockRuntimeClient | null = null;
 

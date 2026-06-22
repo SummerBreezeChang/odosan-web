@@ -180,6 +180,19 @@ Do NOT include clarifyingQuestions — refinement is the final answer.`;
       }
       const geminiData = await geminiResponse.json();
       responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      if (!(responseText ?? "").trim()) {
+        const finishReason = geminiData.candidates?.[0]?.finishReason;
+        console.error('[GEMINI REFINE EMPTY RESPONSE]', {
+          finishReason,
+          raw: JSON.stringify(geminiData).slice(0, 500),
+        });
+        throw new Error(
+          finishReason
+            ? `Gemini returned no content (finishReason: ${finishReason})`
+            : 'Gemini returned no content'
+        );
+      }
     }
 
     let jsonText = (responseText ?? '').trim();

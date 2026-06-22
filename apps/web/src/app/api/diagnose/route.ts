@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Category and neighborhood are required' }, { status: 400 });
     }
 
-    // Log every Gemini call for cost tracking
-    console.log('[GEMINI API CALL]', {
+    // Log every diagnose request for cost tracking
+    console.log('[DIAGNOSE REQUEST]', {
       timestamp: new Date().toISOString(),
       category,
       neighborhood,
@@ -182,6 +182,24 @@ When the issue truly has no DIY product (e.g. structural roof failure), return t
       }
       const geminiData = await geminiResponse.json();
       responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      // Gemini can return 200 with no content when a safety filter triggers
+      // or the prompt is blocked. Surface that as a real error instead of
+      // letting JSON.parse('') explode downstream.
+      if (!(responseText ?? "").trim()) {
+        const finishReason = geminiData.candidates?.[0]?.finishReason;
+        const promptFeedback = geminiData.promptFeedback;
+        console.error('[GEMINI EMPTY RESPONSE]', {
+          finishReason,
+          promptFeedback,
+          raw: JSON.stringify(geminiData).slice(0, 500),
+        });
+        throw new Error(
+          finishReason
+            ? `Gemini returned no content (finishReason: ${finishReason})`
+            : 'Gemini returned no content'
+        );
+      }
     }
 
     // Strip any accidental markdown wrappers

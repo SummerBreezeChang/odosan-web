@@ -17,7 +17,7 @@ export function SiteHeader() {
             width={32}
             height={32}
             priority
-            className="h-8 w-8 rounded-full bg-od-bg object-cover"
+            className="h-8 w-8"
             aria-hidden="true"
           />
           <span

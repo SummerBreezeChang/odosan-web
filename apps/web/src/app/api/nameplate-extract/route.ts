@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server';
+import { invokeClaudeOnBedrock, isBedrockConfigured } from '@/lib/aws-bedrock';
+import { isS3Configured, uploadPhoto } from '@/lib/aws-s3';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -77,7 +79,18 @@ export async function POST(request: NextRequest) {
       system_type: systemType,
       mime: mimeType,
       bytes: buffer.length,
+      bedrock: isBedrockConfigured(),
+      s3: isS3Configured(),
     });
+
+    // Fire-and-await S3 upload in parallel with the model call. Non-fatal if S3
+    // is unconfigured — the extraction still works without persisted photos.
+    const s3Promise = isS3Configured()
+      ? uploadPhoto(buffer, mimeType, `nameplates/${systemType}`).catch((err) => {
+          console.error('[S3 UPLOAD FAILED]', err);
+          return null;
+        })
+      : Promise.resolve(null);
 
     const currentYear = new Date().getFullYear();
     const prompt = `You are a home-inspector AI extracting equipment data from a photo. Be honest about what is and isn't legible — never invent details. If a field is unreadable or absent, return null. Current year: ${currentYear}.
@@ -114,46 +127,83 @@ install_date defaults to manufacture_date when no separate install record is vis
 estimated_age_years = ${currentYear} - year(install_date or manufacture_date) — return null if neither date is known.
 expected_lifespan_years follows the typical ranges in the guidance above.`;
 
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: imageBase64 } },
+    let responseText: string | null = null;
+    let aiProvider: 'bedrock' | 'gemini' | null = null;
+
+    // Primary: Claude on Amazon Bedrock (AWS-native AI for the AWS hackathon story).
+    if (isBedrockConfigured()) {
+      try {
+        responseText = await invokeClaudeOnBedrock({
+          system:
+            'You are a home-inspector AI. Return only the JSON object requested — no markdown, no code blocks, no commentary.',
+          maxTokens: 2048,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: mimeType, data: imageBase64 },
+                },
+                { type: 'text', text: prompt },
+              ],
+            },
           ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 32,
-        topP: 1,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      },
-    };
-
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        });
+        aiProvider = 'bedrock';
+      } catch (err) {
+        console.error('[BEDROCK FAILED — falling back to Gemini]', err);
       }
-    );
-
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('[GEMINI ERROR]', errorText);
-      return Response.json(
-        { error: `Gemini API error: ${geminiResponse.status}` },
-        { status: 502 }
-      );
     }
 
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Fallback: Gemini (keeps the demo working if Bedrock isn't configured yet
+    // on Vercel preview, or if the model is temporarily unavailable).
+    if (responseText === null) {
+      if (!GEMINI_API_KEY) {
+        return Response.json(
+          { error: 'No AI provider configured (set AWS Bedrock or GEMINI_API_KEY)' },
+          { status: 500 }
+        );
+      }
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: imageBase64 } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 32,
+          topP: 1,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+        },
+      };
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        }
+      );
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error('[GEMINI ERROR]', errorText);
+        return Response.json(
+          { error: `AI provider error: ${geminiResponse.status}` },
+          { status: 502 }
+        );
+      }
+      const geminiData = await geminiResponse.json();
+      responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      aiProvider = 'gemini';
+    }
 
-    let jsonText = responseText.trim();
+    let jsonText = (responseText ?? '').trim();
     if (jsonText.startsWith('```')) {
       jsonText = jsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     }
@@ -173,7 +223,15 @@ expected_lifespan_years follows the typical ranges in the guidance above.`;
     if (typeof extracted.confidence !== 'number') extracted.confidence = 0;
     if (typeof extracted.raw_text !== 'string') extracted.raw_text = '';
 
-    return Response.json({ extracted });
+    const s3Result = await s3Promise;
+
+    return Response.json({
+      extracted,
+      ai_provider: aiProvider,
+      photo: s3Result
+        ? { bucket: s3Result.bucket, key: s3Result.key, region: s3Result.region }
+        : null,
+    });
   } catch (error) {
     console.error('[/api/nameplate-extract error]', error);
     return Response.json({ error: 'Failed to extract nameplate' }, { status: 500 });

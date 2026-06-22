@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { invokeClaudeOnBedrock, isBedrockConfigured } from '@/lib/aws-bedrock';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -107,45 +108,81 @@ recommendedCategory must be one of: plumbing_drainage, gutters_drainage, landsca
 diyShoppingQuery: 2-6 word Amazon search keywords for the DIY part(s) for this repair. ALWAYS populate, even when diyOrPro=pro (useful as a temporary fix or supplement). Refine from the first-pass query using what the answers revealed (size, location, severity).
 Do NOT include clarifyingQuestions — refinement is the final answer.`;
 
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            ...(imageBase64
-              ? [{ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } }]
-              : []),
+    let responseText: string | null = null;
+
+    if (isBedrockConfigured()) {
+      try {
+        responseText = await invokeClaudeOnBedrock({
+          system:
+            'You are a home maintenance expert refining an earlier diagnosis based on the homeowner answers. Return only the JSON object requested — no markdown, no code blocks, no commentary.',
+          maxTokens: 2048,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                ...(imageBase64
+                  ? ([
+                      {
+                        type: 'image' as const,
+                        source: {
+                          type: 'base64' as const,
+                          media_type: 'image/jpeg',
+                          data: imageBase64,
+                        },
+                      },
+                    ])
+                  : []),
+                { type: 'text', text: prompt },
+              ],
+            },
           ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.3,
-        topK: 32,
-        topP: 1,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      },
-    };
-
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        });
+      } catch (err) {
+        console.error('[BEDROCK REFINE FAILED — falling back to Gemini]', err);
       }
-    );
-
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('[GEMINI REFINE ERROR]', errorText);
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
 
-    const geminiData = await geminiResponse.json();
-    const responseText: string = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (responseText === null) {
+      if (!GEMINI_API_KEY) {
+        throw new Error('No AI provider configured (set AWS Bedrock or GEMINI_API_KEY)');
+      }
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              ...(imageBase64
+                ? [{ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } }]
+                : []),
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          topK: 32,
+          topP: 1,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+        },
+      };
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        }
+      );
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error('[GEMINI REFINE ERROR]', errorText);
+        throw new Error(`AI provider error: ${geminiResponse.status}`);
+      }
+      const geminiData = await geminiResponse.json();
+      responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
 
-    let jsonText = responseText.trim();
+    let jsonText = (responseText ?? '').trim();
     if (jsonText.startsWith('```')) {
       jsonText = jsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     }

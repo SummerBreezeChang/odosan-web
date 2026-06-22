@@ -210,7 +210,8 @@ function MyHome() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="5500 Broadway Terrace, Oakland"
-            className="flex-1 rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none"
+            className="flex-1 rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
+            aria-label="Your home address"
           />
           <button
             type="submit"

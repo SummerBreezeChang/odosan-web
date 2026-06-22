@@ -476,7 +476,7 @@ function DiagnoseInner() {
                     value={answers[q.id] ?? ''}
                     onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                     placeholder="Type your answer..."
-                    className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none"
+                    className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
                   />
                 )}
               </div>

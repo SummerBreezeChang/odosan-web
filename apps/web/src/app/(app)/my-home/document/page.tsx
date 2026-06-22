@@ -279,7 +279,7 @@ function DocumentSpike() {
               disabled={!file || extracting}
               className="rounded-xl bg-od-navy px-5 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {extracting ? 'Extracting…' : 'Extract with Gemini'}
+              {extracting ? 'Extracting…' : 'Scan nameplate'}
             </button>
           </div>
           {file && (

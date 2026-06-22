@@ -14,10 +14,10 @@ export function SiteHeader() {
           <Image
             src="/icon-192.png"
             alt=""
-            width={28}
-            height={28}
+            width={32}
+            height={32}
             priority
-            className="h-7 w-7 rounded-lg"
+            className="h-8 w-8 rounded-full bg-od-bg object-cover"
             aria-hidden="true"
           />
           <span

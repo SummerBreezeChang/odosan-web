@@ -1,154 +1,164 @@
 import Link from 'next/link';
 
+function CameraIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="12.5" r="3.5" />
+    </svg>
+  );
+}
+
+function WrenchIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.7-.7-.7-2.7z" />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+    </svg>
+  );
+}
+
+function SparkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8z" />
+      <path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+    </svg>
+  );
+}
+
+const STEPS = [
+  {
+    n: '01',
+    title: 'Snap + a sentence',
+    desc: 'Take a photo, add a quick note. Get a diagnosis and fair price for your area.',
+    Icon: CameraIcon,
+  },
+  {
+    n: '02',
+    title: 'DIY or pro? Straight answer.',
+    desc: 'Odosan tells you which way costs less — then helps you spend the least either way.',
+    Icon: WrenchIcon,
+  },
+  {
+    n: '03',
+    title: 'Save to My Home',
+    desc: "A record of your home's health that grows over time. Refer back any time.",
+    Icon: BookmarkIcon,
+  },
+] as const;
+
 export default function Home() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
       {/* Hero */}
-      <section className="scroll-mt-24 pt-2 sm:pt-4">
-        <div className="rounded-3xl border border-od-primary/10 bg-white p-6 shadow-sm sm:p-10">
-          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
-            <div className="min-w-0">
-              <div className="inline-flex items-center rounded-full border border-od-primary/20 bg-od-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-od-primary">
-                Home maintenance, AI-diagnosed
-              </div>
-              <h1
-                className="mt-5 w-full max-w-[672px] text-4xl font-bold leading-[1.08] text-od-navy sm:text-5xl"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                Your home&apos;s dad.
-              </h1>
-              <p className="mt-5 max-w-2xl pr-2 text-lg leading-relaxed text-od-muted">
-                Snap a photo of what&apos;s wrong. Odosan diagnoses the issue, tells you what it
-                should cost, and matches you with two or three vetted East Bay pros — without ever
-                sharing your name or address until you say so.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link
-                  href="/diagnose"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-od-navy px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-od-navy/90 sm:w-auto"
-                >
-                  Diagnose my problem →
-                </Link>
-                <Link
-                  href="/my-home"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-od-navy/15 bg-white px-6 py-3 text-base font-semibold text-od-navy transition-colors hover:bg-od-primary-soft sm:w-auto"
-                >
-                  Look up my home
-                </Link>
-                <Link
-                  href="/for-providers"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-od-navy/15 bg-white px-6 py-3 text-base font-semibold text-od-navy transition-colors hover:bg-od-primary-soft sm:w-auto"
-                >
-                  I&apos;m a service pro
-                </Link>
-              </div>
-              <p className="mt-2 text-xs leading-snug text-gray-500">
-                Free for homeowners. Providers pay only when a homeowner chooses them.
-              </p>
-            </div>
-            <div className="mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
-              <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl border border-od-primary/10 bg-od-cream shadow-md">
-                <div className="px-8 text-center">
-                  <p className="mb-3 text-6xl">🏠</p>
-                  <p className="text-sm font-medium text-od-muted/50">App screenshot placeholder</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <section>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-od-primary">
+          Your home&apos;s dad
+        </p>
+        <h1
+          className="mt-3 text-[34px] font-bold leading-[1.1] text-od-navy sm:text-[40px]"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Know what&apos;s wrong — and whether you can fix it yourself.
+        </h1>
+        <p className="mt-4 text-base leading-relaxed text-od-muted">
+          Snap a photo. Odosan tells you what it is, what it should cost, and whether it&apos;s a
+          quick DIY or worth calling a pro — so you spend the least to keep your home healthy.
+        </p>
+
+        <Link
+          href="/diagnose"
+          className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-od-navy px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-od-navy/90"
+        >
+          <CameraIcon className="h-5 w-5" />
+          Diagnose a problem
+        </Link>
+        <p className="mt-3 text-center text-xs text-od-subtle">Free. No account needed.</p>
       </section>
 
       {/* How it works */}
-      <section
-        id="how-it-works"
-        className="mt-7 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-8"
-      >
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
+      <section className="mt-10">
+        <h2
+          className="text-xl font-bold text-od-navy"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
           How it works
         </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-          {[
-            [
-              '01',
-              'Snap a photo',
-              "Tell us what's wrong in a sentence. Add a photo if you have one. Pick your neighborhood.",
-            ],
-            [
-              '02',
-              'Get an AI diagnosis',
-              'Gemini reads your photo + description and explains the issue, urgency, and a fair price range for the East Bay.',
-            ],
-            [
-              '03',
-              'Compare 2–3 vetted pros',
-              "See what's included and what each one costs — not generic listings, real East Bay providers.",
-            ],
-            [
-              '04',
-              'Connect when you&apos;re ready',
-              'Your name and address stay private until you consent. The pro pays Odosan only when you choose them.',
-            ],
-          ].map(([n, t, d]) => (
-            <div key={n} className="min-w-0 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">{n}</p>
-              <h3 className="mt-2 text-lg font-bold text-od-navy">{t}</h3>
-              <p
-                className="mt-2 text-sm text-od-muted"
-                dangerouslySetInnerHTML={{ __html: d as string }}
-              />
+        <div className="mt-4 flex flex-col gap-3">
+          {STEPS.map(({ n, title, desc, Icon }) => (
+            <div
+              key={n}
+              className="rounded-2xl border border-od-border bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+            >
+              <div className="flex items-center gap-2 text-od-primary">
+                <span className="text-xs font-semibold tracking-wide text-od-subtle">{n}</span>
+                <Icon className="h-4 w-4" />
+              </div>
+              <h3
+                className="mt-2 text-lg font-bold text-od-navy"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {title}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-od-muted">{desc}</p>
             </div>
           ))}
         </div>
-        <div className="mt-6">
-          <Link
-            href="/diagnose"
-            className="inline-flex items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90"
-          >
-            Try it now →
-          </Link>
-        </div>
       </section>
 
-      {/* Why Odosan */}
-      <section
-        id="why"
-        className="mt-7 mb-10 rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-8"
-      >
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-od-primary">
-          Why Odosan
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="min-w-0 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-od-green text-lg text-white">
-              🛡️
-            </div>
-            <h3 className="mt-3 text-lg font-bold text-od-navy">Privacy by default</h3>
-            <p className="mt-2 text-sm text-od-muted">
-              Providers see the problem and the neighborhood — never your name or address. Photo
-              EXIF is stripped on upload. You stay anonymous until you choose to connect.
-            </p>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-od-primary text-lg text-white">
-              📍
-            </div>
-            <h3 className="mt-3 text-lg font-bold text-od-navy">East Bay-specific</h3>
-            <p className="mt-2 text-sm text-od-muted">
-              Not generic checklists. Odosan&apos;s diagnoses account for Berkeley clay soil,
-              pre-1940 housing stock, and the real range of what plumbers in Oakland actually
-              charge.
-            </p>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-od-orange text-lg text-white">
-              👨
-            </div>
-            <h3 className="mt-3 text-lg font-bold text-od-navy">Dad&apos;s voice</h3>
-            <p className="mt-2 text-sm text-od-muted">
-              Direct, warm, practical advice. &ldquo;Flush the sediment. Costs 20 minutes. Adds 3–5
-              years.&rdquo; No fluff.
-            </p>
-          </div>
+      {/* Where it's going */}
+      <section className="mt-3">
+        <div className="flex items-start gap-3 rounded-2xl border border-od-border bg-white/60 p-5">
+          <SparkIcon className="mt-0.5 h-5 w-5 shrink-0 text-od-primary" />
+          <p className="text-sm leading-relaxed text-od-muted">
+            <span className="font-semibold text-od-navy">Where it&apos;s going.</span> One day, walk
+            through your home once and Odosan maps everything that needs care — turning maintenance
+            into resale equity.
+          </p>
         </div>
       </section>
     </div>

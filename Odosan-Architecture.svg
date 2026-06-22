@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="'DM Sans','Helvetica Neue',Arial,sans-serif" role="img" aria-label="Odosan system architecture: a Next.js PWA on Vercel calls server-side API routes that use Amazon Bedrock (Claude Sonnet 4.6) for diagnosis with a Gemini fallback, store photos in Amazon S3, read and write Amazon Aurora PostgreSQL, and link DIY parts via Amazon Associates. Contact data in Aurora is gated, released only on consent.">
+  <defs><linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F1F7FB"/><stop offset="1" stop-color="#FBF3F6"/></linearGradient></defs>
+  <rect x="0" y="0" width="1200" height="700" fill="url(#bg2)"/>
+
+  <text x="48" y="50" font-size="26" font-weight="700" fill="#0F172A">Odosan · system architecture</text>
+  <text x="48" y="78" font-size="13.5" fill="#64748B">How the app connects to its data. Four AWS services anchor the build, around a Vercel trust boundary.</text>
+
+  <!-- PWA -->
+  <rect x="440" y="102" width="320" height="48" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+  <text x="600" y="126" font-size="14.5" font-weight="700" fill="#0F172A" text-anchor="middle">Homeowner &amp; Provider</text>
+  <text x="600" y="143" font-size="11.5" fill="#64748B" text-anchor="middle">installable PWA · Next.js</text>
+
+  <line x1="600" y1="150" x2="600" y2="182" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="2 5"/>
+  <!-- Vercel trust boundary -->
+  <rect x="418" y="182" width="364" height="56" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.6"/>
+  <text x="600" y="206" font-size="14.5" font-weight="700" fill="#0F172A" text-anchor="middle">Vercel — server API routes</text>
+  <text x="600" y="224" font-size="11" fill="#64748B" text-anchor="middle">trust boundary · secrets never reach the browser</text>
+
+  <!-- connections -->
+  <path d="M440,212 C 320,235 200,255 171,294" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="2 5"/>
+  <text x="300" y="262" font-size="11" font-weight="700" fill="#64748B" text-anchor="middle">diagnose / OCR</text>
+  <path d="M770,214 C 905,235 1000,255 1030,294" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="2 5"/>
+  <text x="930" y="262" font-size="11" font-weight="700" fill="#64748B" text-anchor="middle">store photos</text>
+  <path d="M782,228 C 980,300 1020,330 1030,388" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="2 5"/>
+  <line x1="600" y1="238" x2="600" y2="292" stroke="#2563EB" stroke-width="3"/>
+  <path d="M594,300 L600,292 L606,300" fill="none" stroke="#2563EB" stroke-width="2"/>
+  <path d="M594,246 L600,238 L606,246" fill="none" stroke="#2563EB" stroke-width="2"/>
+  <text x="636" y="270" font-size="11.5" font-weight="700" fill="#2563EB">read / write</text>
+
+  <!-- Bedrock (primary AI) -->
+  <rect x="40" y="294" width="262" height="74" rx="10" fill="#F8FAFC" stroke="#232F3E" stroke-width="1.6"/>
+  <rect x="256" y="300" width="38" height="16" rx="4" fill="#EC7211"/><text x="275" y="312" font-size="9.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">AWS</text>
+  <text x="171" y="321" font-size="14.5" font-weight="700" fill="#232F3E" text-anchor="middle">Amazon Bedrock</text>
+  <text x="171" y="339" font-size="10.6" fill="#475569" text-anchor="middle">Claude Sonnet 4.6 · vision OCR + diagnose</text>
+  <text x="171" y="356" font-size="10.5" fill="#475569" text-anchor="middle">us-west-2 · primary AI</text>
+  <line x1="171" y1="368" x2="171" y2="390" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="1 4"/>
+  <rect x="60" y="390" width="222" height="42" rx="9" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+  <text x="171" y="416" font-size="11.5" font-weight="600" fill="#475569" text-anchor="middle">Gemini 2.5 Pro — auto fallback</text>
+
+  <!-- Aurora (centerpiece) -->
+  <rect x="456" y="290" width="288" height="88" rx="12" fill="#EFF6FF" stroke="#2563EB" stroke-width="2.2"/>
+  <rect x="700" y="297" width="38" height="16" rx="4" fill="#EC7211"/><text x="719" y="309" font-size="9.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">AWS</text>
+  <text x="600" y="321" font-size="15" font-weight="700" fill="#1E3A8A" text-anchor="middle">Amazon Aurora PostgreSQL</text>
+  <text x="600" y="341" font-size="11.5" fill="#2563EB" text-anchor="middle">Serverless v2 · us-west-2</text>
+  <text x="600" y="360" font-size="10.5" font-weight="700" fill="#2563EB" text-anchor="middle">the required database — centerpiece</text>
+
+  <line x1="600" y1="378" x2="600" y2="452" stroke="#2563EB" stroke-width="2"/>
+  <rect x="446" y="452" width="308" height="56" rx="10" fill="#FFFFFF" stroke="#BFD7F5" stroke-width="1.5"/>
+  <text x="600" y="475" font-size="12" font-weight="700" fill="#2563EB" text-anchor="middle">App data in Aurora</text>
+  <text x="600" y="495" font-size="11.5" fill="#374151" text-anchor="middle">providers · leads · quotes · homes · users</text>
+
+  <line x1="600" y1="508" x2="600" y2="524" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="2 4"/>
+  <rect x="446" y="524" width="308" height="50" rx="10" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text x="600" y="546" font-size="12" font-weight="700" fill="#991B1B" text-anchor="middle">contacts · gated</text>
+  <text x="600" y="563" font-size="10.5" fill="#B91C1C" text-anchor="middle">identity · phone · email — released only on consent</text>
+
+  <!-- S3 -->
+  <rect x="900" y="294" width="260" height="74" rx="10" fill="#F8FAFC" stroke="#232F3E" stroke-width="1.6"/>
+  <rect x="1116" y="300" width="38" height="16" rx="4" fill="#EC7211"/><text x="1135" y="312" font-size="9.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">AWS</text>
+  <text x="1030" y="321" font-size="14.5" font-weight="700" fill="#232F3E" text-anchor="middle">Amazon S3</text>
+  <text x="1030" y="339" font-size="10.6" fill="#475569" text-anchor="middle">odosan-nameplates · durable photo storage</text>
+  <text x="1030" y="356" font-size="10.5" fill="#475569" text-anchor="middle">us-west-2</text>
+
+  <!-- Amazon Associates -->
+  <rect x="900" y="388" width="260" height="58" rx="10" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.6"/>
+  <text x="1030" y="412" font-size="13.5" font-weight="700" fill="#9A3412" text-anchor="middle">Amazon Associates</text>
+  <text x="1030" y="431" font-size="11" fill="#C2410C" text-anchor="middle">affiliate links · DIY parts</text>
+
+  <!-- captions -->
+  <text x="48" y="618" font-size="13" font-weight="700" fill="#0F172A">Four AWS services power Odosan</text>
+  <text x="48" y="639" font-size="12.5" fill="#475569">Amazon Bedrock (AI) · Amazon Aurora (database) · Amazon S3 (photo storage) — plus the Amazon Associates commerce relationship.</text>
+  <text x="48" y="662" font-size="12.5" fill="#475569">Privacy is a foreign-key boundary: a provider reaches a homeowner's contact info only after consent, enforced inside Aurora.</text>
+</svg>

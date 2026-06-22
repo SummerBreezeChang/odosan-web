@@ -22,8 +22,8 @@ export function SiteFooter() {
           <Link href="/support" className="transition-colors hover:text-od-navy">
             Support
           </Link>
-          <a href="mailto:contact@odosan.care" className="transition-colors hover:text-od-navy">
-            contact@odosan.care
+          <a href="mailto:contact@odosan.tech" className="transition-colors hover:text-od-navy">
+            contact@odosan.tech
           </a>
         </div>
         <p className="text-xs text-od-subtle">&copy; 2026 Odosan</p>

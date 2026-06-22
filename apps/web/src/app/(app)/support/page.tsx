@@ -19,10 +19,10 @@ export default function Support() {
             </h2>
             <p className="mb-4">For questions or support, email us at:</p>
             <a
-              href="mailto:contact@odosan.care"
+              href="mailto:contact@odosan.tech"
               className="text-od-primary font-semibold text-lg hover:underline"
             >
-              contact@odosan.care
+              contact@odosan.tech
             </a>
             <p className="mt-2 text-sm text-od-muted/60">We typically respond within 24 hours.</p>
           </div>
@@ -64,7 +64,7 @@ export default function Support() {
               />
               <Faq
                 q="How do I delete my account?"
-                a="Go to Profile → Settings → Delete account and all data. This permanently removes all your home data, service history, and scores from your device. You can also email contact@odosan.care."
+                a="Go to Profile → Settings → Delete account and all data. This permanently removes all your home data, service history, and scores from your device. You can also email contact@odosan.tech."
               />
               <Faq
                 q="Is Odosan free?"
@@ -82,10 +82,10 @@ export default function Support() {
             <p className="mb-2">
               Email{' '}
               <a
-                href="mailto:contact@odosan.care"
+                href="mailto:contact@odosan.tech"
                 className="text-od-primary font-semibold hover:underline"
               >
-                contact@odosan.care
+                contact@odosan.tech
               </a>{' '}
               with:
             </p>

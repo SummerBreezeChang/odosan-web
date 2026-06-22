@@ -113,8 +113,8 @@ function ClaimProviderInner() {
           Search for your business in the East Bay provider directory and claim it. Once claimed,
           your lead inbox shows only jobs matched to your trade and service areas. (Don&apos;t see
           your business? Email{' '}
-          <a href="mailto:contact@odosan.care" className="underline">
-            contact@odosan.care
+          <a href="mailto:contact@odosan.tech" className="underline">
+            contact@odosan.tech
           </a>{' '}
           and we&apos;ll add you.)
         </p>

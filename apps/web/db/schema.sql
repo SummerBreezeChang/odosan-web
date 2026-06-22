@@ -177,3 +177,56 @@ CREATE INDEX IF NOT EXISTS lead_quotes_provider_idx ON lead_quotes (provider_id)
 -- Track which signed-in homeowner created a lead (nullable for anonymous flow).
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS homeowner_user_id text REFERENCES "user" (id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS leads_homeowner_user_idx ON leads (homeowner_user_id);
+
+-- ----------------------------------------------------------------------------
+-- Home record (signed-in homeowner's saved diagnoses + scanned systems)
+-- Mirrors the localStorage shape in lib/home-record.ts so the same UI works
+-- both anonymous (localStorage) and signed in (Aurora).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS user_home_briefs (
+  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             text NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  category            text NOT NULL,
+  neighborhood        text NOT NULL,
+  issue               text NOT NULL,
+  severity            text NOT NULL,
+  scope_of_work       text NOT NULL,
+  fair_price_range    text NOT NULL,
+  diy_or_pro          text NOT NULL,
+  explanation         text NOT NULL,
+  confidence          integer NOT NULL DEFAULT 0,
+  diy_shopping_query  text NOT NULL DEFAULT '',
+  saved_at            timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS user_home_briefs_user_idx
+  ON user_home_briefs (user_id, saved_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_home_systems (
+  id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id                  text NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  system_type              text NOT NULL,
+  make                     text,
+  model                    text,
+  serial                   text,
+  install_date             text,
+  manufacture_date         text,
+  capacity                 text,
+  fuel_or_type             text,
+  estimated_age_years      integer,
+  expected_lifespan_years  integer,
+  notes                    text,
+  recall_or_safety_flag    text,
+  confidence               integer NOT NULL DEFAULT 0,
+  raw_text                 text NOT NULL DEFAULT '',
+  photo_s3_bucket          text,
+  photo_s3_key             text,
+  photo_s3_region          text,
+  documented_at            timestamptz NOT NULL DEFAULT now(),
+  -- Latest scan per system_type wins, matching the localStorage upsert behavior.
+  UNIQUE (user_id, system_type)
+);
+
+CREATE INDEX IF NOT EXISTS user_home_systems_user_idx
+  ON user_home_systems (user_id, documented_at DESC);

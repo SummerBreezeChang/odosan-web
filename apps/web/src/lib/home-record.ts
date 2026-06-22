@@ -127,6 +127,81 @@ export function removeBrief(briefId: string): void {
   });
 }
 
+// ─── Server sync ──────────────────────────────────────────────────────────────
+// These helpers persist the same shape to Aurora when the user is signed in.
+// Components call them fire-and-forget after the local save — UI stays instant,
+// the DB write happens in the background.
+
+export async function fetchRemoteRecord(): Promise<HomeRecord | null> {
+  try {
+    const res = await fetch('/api/home-record', { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as HomeRecord;
+    return {
+      systems: Array.isArray(data.systems) ? data.systems : [],
+      briefs: Array.isArray(data.briefs) ? data.briefs : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function syncBriefToServer(brief: Omit<DiagnosisBrief, 'id' | 'saved_at'>): Promise<void> {
+  try {
+    await fetch('/api/home-record/brief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(brief),
+    });
+  } catch (err) {
+    console.error('[syncBriefToServer]', err);
+  }
+}
+
+export async function syncSystemToServer(
+  system: Omit<SystemRecord, 'id' | 'documented_at'> & {
+    photo_s3_bucket?: string | null;
+    photo_s3_key?: string | null;
+    photo_s3_region?: string | null;
+  }
+): Promise<void> {
+  try {
+    await fetch('/api/home-record/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(system),
+    });
+  } catch (err) {
+    console.error('[syncSystemToServer]', err);
+  }
+}
+
+export async function migrateLocalToRemote(): Promise<{
+  briefsInserted: number;
+  systemsInserted: number;
+} | null> {
+  if (!isBrowser()) return null;
+  const local = loadHomeRecord();
+  if (local.briefs.length === 0 && local.systems.length === 0) {
+    return { briefsInserted: 0, systemsInserted: 0 };
+  }
+  try {
+    const res = await fetch('/api/home-record/migrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(local),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { briefsInserted: number; systemsInserted: number };
+  } catch (err) {
+    console.error('[migrateLocalToRemote]', err);
+    return null;
+  }
+}
+
 export const SYSTEM_LABELS: Record<SystemType, string> = {
   water_heater: 'Water heater',
   hvac: 'HVAC',

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
-import { saveBrief } from '@/lib/home-record';
+import { saveBrief, syncBriefToServer } from '@/lib/home-record';
 
 type Step =
   | 'intake'
@@ -156,7 +156,7 @@ function DiagnoseInner() {
     if (!diagnosis) return;
     setSavingBrief(true);
     try {
-      const saved = saveBrief({
+      const briefPayload = {
         category: diagnosis.recommendedCategory,
         neighborhood,
         issue: diagnosis.issue,
@@ -167,8 +167,12 @@ function DiagnoseInner() {
         explanation: diagnosis.explanation,
         confidence: diagnosis.confidence ?? 0,
         diyShoppingQuery: diagnosis.diyShoppingQuery ?? '',
-      });
+      };
+      const saved = saveBrief(briefPayload);
       setSavedBriefId(saved.id);
+      // Fire-and-forget DB sync. 401 means anonymous user — fine, the brief
+      // lives in localStorage until they sign up.
+      void syncBriefToServer(briefPayload);
     } finally {
       setSavingBrief(false);
     }

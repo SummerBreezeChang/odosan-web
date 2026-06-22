@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { saveSystem, type SystemType as RecordSystemType } from '@/lib/home-record';
+import { saveSystem, syncSystemToServer, type SystemType as RecordSystemType } from '@/lib/home-record';
 
 type SystemType = RecordSystemType;
 
@@ -129,7 +129,7 @@ function DocumentSpike() {
       setExtracted(data.extracted);
       try {
         const { system_type, make, model, serial, install_date, manufacture_date, capacity, fuel_or_type, estimated_age_years, expected_lifespan_years, notes, recall_or_safety_flag, confidence, raw_text } = data.extracted;
-        saveSystem({
+        const systemPayload = {
           system_type,
           make,
           model,
@@ -144,6 +144,15 @@ function DocumentSpike() {
           recall_or_safety_flag,
           confidence,
           raw_text,
+        };
+        saveSystem(systemPayload);
+        // Fire-and-forget DB sync (with S3 photo metadata when present).
+        // 401 means anonymous user — fine, the system lives in localStorage.
+        void syncSystemToServer({
+          ...systemPayload,
+          photo_s3_bucket: data.photo?.bucket ?? null,
+          photo_s3_key: data.photo?.key ?? null,
+          photo_s3_region: data.photo?.region ?? null,
         });
         setSaved(true);
       } catch (err) {

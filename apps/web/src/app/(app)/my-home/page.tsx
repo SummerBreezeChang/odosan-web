@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from '@/lib/auth-client';
 import {
   SYSTEM_LABELS,
+  fetchRemoteRecord,
   loadHomeRecord,
+  migrateLocalToRemote,
   type DiagnosisBrief,
   type SystemRecord,
 } from '@/lib/home-record';
@@ -27,19 +30,62 @@ const SEVERITY_STYLE: Record<DiagnosisBrief['severity'], string> = {
 };
 
 export default function MyHomePage() {
+  const { data: session, isPending: sessionLoading } = useSession();
   const [systems, setSystems] = useState<SystemRecord[]>([]);
   const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
+  const [migrationStatus, setMigrationStatus] = useState<
+    'idle' | 'migrating' | 'done'
+  >('idle');
 
+  // Refresh from whichever store is active for the current user.
   useEffect(() => {
-    function refresh() {
-      const rec = loadHomeRecord();
-      setSystems(rec.systems);
-      setBriefs(rec.briefs);
+    let cancelled = false;
+    async function refresh() {
+      if (session?.user) {
+        // Signed in — pull from Aurora. If a localStorage record exists, migrate
+        // it first on the very first load after sign-in, then re-fetch.
+        const local = loadHomeRecord();
+        const hasLocal = local.briefs.length > 0 || local.systems.length > 0;
+        if (hasLocal && migrationStatus === 'idle') {
+          setMigrationStatus('migrating');
+          await migrateLocalToRemote();
+          if (cancelled) return;
+          // Clear local after successful migration so we don't keep re-uploading.
+          try {
+            window.localStorage.removeItem('odosan:home-record');
+          } catch {}
+          setMigrationStatus('done');
+        }
+        const remote = await fetchRemoteRecord();
+        if (cancelled) return;
+        if (remote) {
+          setSystems(remote.systems);
+          setBriefs(remote.briefs);
+        } else {
+          setSystems([]);
+          setBriefs([]);
+        }
+      } else {
+        const rec = loadHomeRecord();
+        if (cancelled) return;
+        setSystems(rec.systems);
+        setBriefs(rec.briefs);
+      }
     }
-    refresh();
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
-  }, []);
+    void refresh();
+    function onFocus() {
+      void refresh();
+    }
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  const isSignedIn = !!session?.user;
+  const hasAnyData = briefs.length > 0 || systems.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
@@ -51,10 +97,40 @@ export default function MyHomePage() {
           My home
         </h1>
         <p className="mt-3 text-base text-od-muted">
-          A lightweight record of your home&apos;s health. It grows every time you diagnose
-          something.
+          {isSignedIn ? (
+            <>
+              Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}. Your
+              maintenance record, saved to your account.
+            </>
+          ) : (
+            <>A lightweight record of your home&apos;s health. It grows every time you diagnose something.</>
+          )}
         </p>
       </header>
+
+      {!sessionLoading && !isSignedIn && hasAnyData && (
+        <div className="mt-6 rounded-2xl border border-od-primary/20 bg-od-primary-soft p-4 sm:p-5">
+          <p className="text-sm font-semibold text-od-navy">
+            ✨ Save this across devices
+          </p>
+          <p className="mt-1 text-sm text-od-muted">
+            Right now your record is on this browser only. Create a free account to keep it safe
+            — open it from your phone, share it with a pro, take it with you.
+          </p>
+          <a
+            href="/account/signup?next=/my-home"
+            className="mt-3 inline-flex items-center justify-center rounded-xl bg-od-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-od-navy/90"
+          >
+            Create a free account →
+          </a>
+        </div>
+      )}
+
+      {migrationStatus === 'done' && hasAnyData && (
+        <div className="mt-4 rounded-xl border border-od-green/20 bg-od-green-soft px-4 py-2 text-xs text-od-green">
+          ✓ Your previous record has been moved to your account.
+        </div>
+      )}
 
       <section className="mt-8">
         <h2 className="text-lg font-bold text-od-navy">Saved diagnoses</h2>

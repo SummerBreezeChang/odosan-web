@@ -75,9 +75,7 @@ export default function DocumentSpikePage() {
 
 function DocumentSpike() {
   const searchParams = useSearchParams();
-  const parcelId = searchParams.get('parcel_id');
   const initialSystemType = (searchParams.get('system_type') as SystemType) || 'water_heater';
-  const homeAddress = searchParams.get('address') ?? null;
 
   const [systemType, setSystemType] = useState<SystemType>(initialSystemType);
   const [file, setFile] = useState<File | null>(null);
@@ -129,29 +127,27 @@ function DocumentSpike() {
         return;
       }
       setExtracted(data.extracted);
-      if (parcelId) {
-        try {
-          const { system_type, make, model, serial, install_date, manufacture_date, capacity, fuel_or_type, estimated_age_years, expected_lifespan_years, notes, recall_or_safety_flag, confidence, raw_text } = data.extracted;
-          saveSystem(parcelId, {
-            system_type,
-            make,
-            model,
-            serial,
-            install_date,
-            manufacture_date,
-            capacity,
-            fuel_or_type,
-            estimated_age_years,
-            expected_lifespan_years,
-            notes,
-            recall_or_safety_flag,
-            confidence,
-            raw_text,
-          });
-          setSaved(true);
-        } catch (err) {
-          console.error('saveSystem failed', err);
-        }
+      try {
+        const { system_type, make, model, serial, install_date, manufacture_date, capacity, fuel_or_type, estimated_age_years, expected_lifespan_years, notes, recall_or_safety_flag, confidence, raw_text } = data.extracted;
+        saveSystem({
+          system_type,
+          make,
+          model,
+          serial,
+          install_date,
+          manufacture_date,
+          capacity,
+          fuel_or_type,
+          estimated_age_years,
+          expected_lifespan_years,
+          notes,
+          recall_or_safety_flag,
+          confidence,
+          raw_text,
+        });
+        setSaved(true);
+      } catch (err) {
+        console.error('saveSystem failed', err);
       }
       fetchShopping(data.extracted);
     } catch {
@@ -184,35 +180,30 @@ function DocumentSpike() {
     <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
       <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
         <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
-          {parcelId ? 'Add to your home record' : 'Document a home system'}
+          Scan a system
         </p>
         <h1
           className="mt-2 text-3xl font-bold text-od-navy tracking-tight sm:text-4xl"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          {parcelId ? 'Snap a nameplate' : 'Document a home system'}
+          Snap a nameplate
         </h1>
         <p className="mt-3 text-sm text-od-muted">
-          {homeAddress ? (
-            <>
-              Adding a system to <span className="font-semibold text-od-navy">{homeAddress}</span>.{' '}
-            </>
-          ) : null}
-          Upload a photo of a nameplate (water heater, HVAC, panel) or a past roofing invoice.
-          Gemini 2.5 Pro vision extracts make, model, and infers install date and remaining
-          lifespan.
+          Upload a photo of a water heater, HVAC, or electrical panel nameplate — or a past
+          roofing invoice. We extract the make, model, and install date so you know where each
+          system stands.
         </p>
 
-        {parcelId && saved && (
+        {saved && (
           <div className="mt-4 rounded-xl border border-od-green/20 bg-od-green-soft px-4 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
             <p className="text-sm font-semibold text-od-green">
-              ✓ Saved to your home record. Your score updated.
+              ✓ Saved to your home record.
             </p>
             <a
-              href={`/my-home?address=${encodeURIComponent(homeAddress ?? '')}`}
+              href="/my-home"
               className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
             >
-              Back to your home →
+              Back to My home →
             </a>
           </div>
         )}

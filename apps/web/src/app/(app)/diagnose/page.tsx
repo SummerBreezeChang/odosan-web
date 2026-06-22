@@ -123,9 +123,6 @@ function DiagnoseInner() {
   const [savedBriefId, setSavedBriefId] = useState<string | null>(null);
   const [savingBrief, setSavingBrief] = useState(false);
 
-  const parcelId = searchParams.get('parcel_id');
-  const homeAddress = searchParams.get('address');
-
   // Pre-fill from URL params when arriving via /my-home's per-trade CTAs.
   // Only fires once and only if the params match our known options, so users
   // who land on /diagnose without params get a blank form like before.
@@ -156,10 +153,10 @@ function DiagnoseInner() {
   }
 
   function handleSaveBrief() {
-    if (!diagnosis || !parcelId) return;
+    if (!diagnosis) return;
     setSavingBrief(true);
     try {
-      const saved = saveBrief(parcelId, {
+      const saved = saveBrief({
         category: diagnosis.recommendedCategory,
         neighborhood,
         issue: diagnosis.issue,
@@ -641,8 +638,6 @@ function DiagnoseInner() {
 
           {/* Save the brief to the home record. */}
           <SaveBriefBanner
-            parcelId={parcelId}
-            homeAddress={homeAddress}
             savedBriefId={savedBriefId}
             saving={savingBrief}
             onSave={handleSaveBrief}
@@ -807,128 +802,127 @@ function DiagnoseInner() {
 
   // Intake step
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero section */}
-      <div className="bg-gray-50 border-b border-gray-200">
-        <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-          <h1 className="text-5xl font-semibold text-gray-900 mb-4 tracking-tight">Odosan</h1>
-          <p className="text-lg text-gray-600 mb-2">
-            Your privacy-first home maintenance concierge
-          </p>
-          <p className="text-sm text-gray-500">
-            AI diagnosis → fair pricing → vetted local pros → you stay anonymous
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
+      <header>
+        <h1
+          className="text-3xl font-bold text-od-navy tracking-tight sm:text-4xl"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          What&apos;s going on at home?
+        </h1>
+        <p className="mt-3 text-base text-od-muted">
+          A photo helps a lot. A short note helps more. Both are optional, but they sharpen the
+          diagnosis.
+        </p>
+      </header>
 
-      <div className="max-w-2xl mx-auto p-6 py-12">
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2 tracking-tight">
-            What needs fixing?
-          </h2>
-          <p className="text-sm text-gray-500">Tell us about the issue and we'll diagnose it</p>
-        </div>
-
-        <div className="space-y-6">
-          {/* Category selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Category</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-3 text-sm rounded-lg border transition-colors text-left ${
-                    selectedCategory === cat.id
-                      ? 'border-gray-900 bg-gray-900 text-white font-medium'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+      <div className="mt-8 space-y-6">
+        {/* Photo */}
+        <div>
+          <label className="block text-sm font-semibold text-od-navy">Photo</label>
+          {photoPreview ? (
+            <div className="relative mt-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoPreview}
+                alt="Preview"
+                className="w-full h-56 object-cover rounded-2xl border border-od-border"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setPhotoFile(null);
+                  setPhotoPreview('');
+                }}
+                className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-sm border border-od-border hover:bg-od-cream"
+                aria-label="Remove photo"
+              >
+                ✕
+              </button>
             </div>
-          </div>
-
-          {/* Photo upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Photo (optional)</label>
-            {photoPreview ? (
-              <div className="relative">
-                <img
-                  src={photoPreview}
-                  alt="Preview"
-                  className="w-full h-64 object-cover rounded-lg border border-gray-200"
-                />
-                <button
-                  onClick={() => {
-                    setPhotoFile(null);
-                    setPhotoPreview('');
-                  }}
-                  className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-sm border border-gray-200 hover:bg-gray-50"
-                >
-                  ✕
-                </button>
+          ) : (
+            <label className="mt-2 flex flex-col items-center justify-center w-full h-44 border-2 border-od-border border-dashed rounded-2xl cursor-pointer bg-white hover:bg-od-cream transition-colors">
+              <div className="flex flex-col items-center justify-center py-4 text-od-primary">
+                <Upload className="w-7 h-7" aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold text-od-navy">Take or upload a photo</p>
+                <p className="mt-1 text-xs text-od-subtle">↥ Metadata is stripped before upload</p>
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-200 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
-                <div className="flex flex-col items-center justify-center py-6">
-                  <Upload className="w-10 h-10 text-gray-400 mb-3" />
-                  <p className="text-sm text-gray-600 font-medium mb-1">Upload a photo</p>
-                  <p className="text-xs text-gray-500">EXIF data will be removed automatically</p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                />
-              </label>
-            )}
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">
-              Description <span className="text-gray-500 font-normal">(optional)</span>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handlePhotoChange}
+              />
             </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what's happening..."
-              rows={4}
-              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-            />
-          </div>
-
-          {/* Neighborhood */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">
-              Your neighborhood
-            </label>
-            <select
-              value={neighborhood}
-              onChange={(e) => setNeighborhood(e.target.value)}
-              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-            >
-              <option value="">Select neighborhood</option>
-              {neighborhoods.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            onClick={handleDiagnose}
-            disabled={!selectedCategory || !neighborhood || isSubmitting}
-            className="w-full bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            Diagnose
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          )}
         </div>
+
+        {/* Description */}
+        <div>
+          <label htmlFor="diag-description" className="block text-sm font-semibold text-od-navy">
+            What&apos;s going on? <span className="font-normal text-od-muted">(optional)</span>
+          </label>
+          <input
+            id="diag-description"
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. brown stain on bedroom ceiling"
+            className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
+          />
+        </div>
+
+        {/* Category */}
+        <div>
+          <label htmlFor="diag-category" className="block text-sm font-semibold text-od-navy">
+            Category
+          </label>
+          <select
+            id="diag-category"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
+          >
+            <option value="">Pick the closest match</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Neighborhood */}
+        <div>
+          <label htmlFor="diag-neighborhood" className="block text-sm font-semibold text-od-navy">
+            Neighborhood
+          </label>
+          <select
+            id="diag-neighborhood"
+            value={neighborhood}
+            onChange={(e) => setNeighborhood(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
+          >
+            <option value="">Where is this?</option>
+            {neighborhoods.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleDiagnose}
+          disabled={!selectedCategory || !neighborhood || isSubmitting}
+          className="w-full inline-flex items-center justify-center rounded-2xl bg-od-navy px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-od-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSubmitting ? 'Diagnosing…' : 'Get my diagnosis'}
+        </button>
+        <p className="text-center text-xs text-od-subtle">
+          Odosan is upfront when it&apos;s unsure — and will ask quick questions if it needs to.
+        </p>
       </div>
     </div>
   );
@@ -1069,37 +1063,25 @@ function ProSecondary({
 }
 
 function SaveBriefBanner({
-  parcelId,
-  homeAddress,
   savedBriefId,
   saving,
   onSave,
 }: {
-  parcelId: string | null;
-  homeAddress: string | null;
   savedBriefId: string | null;
   saving: boolean;
   onSave: () => void;
 }) {
-  if (!parcelId) {
-    return (
-      <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 px-4 py-3 text-xs text-od-muted">
-        Tip: Start at <a href="/my-home" className="font-semibold text-od-navy underline">My home</a> to save concerns to a specific home for later.
-      </div>
-    );
-  }
-
   if (savedBriefId) {
     return (
       <div className="mt-2 rounded-xl border border-od-green/20 bg-od-green-soft p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
         <p className="text-sm font-semibold text-od-green">
-          ✓ Saved to your home record.
+          ✓ Saved to My home.
         </p>
         <a
-          href={`/my-home?address=${encodeURIComponent(homeAddress ?? '')}`}
+          href="/my-home"
           className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
         >
-          View in My Home →
+          View My home →
         </a>
       </div>
     );
@@ -1108,9 +1090,9 @@ function SaveBriefBanner({
   return (
     <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
       <div>
-        <p className="text-sm font-semibold text-od-navy">Save this brief to your home record</p>
+        <p className="text-sm font-semibold text-od-navy">Save this to My home</p>
         <p className="mt-1 text-xs text-od-muted">
-          Refer back later, share with a pro, or track what you've decided.
+          A lightweight record of your home's health. Refer back any time.
         </p>
       </div>
       <button
@@ -1119,7 +1101,7 @@ function SaveBriefBanner({
         disabled={saving}
         className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
       >
-        {saving ? 'Saving…' : 'Save to My Home'}
+        {saving ? 'Saving…' : 'Save to My home'}
       </button>
     </div>
   );

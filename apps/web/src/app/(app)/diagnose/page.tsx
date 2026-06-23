@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Upload, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { saveBrief, syncBriefToServer } from '@/lib/home-record';
 import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone } from '@/components/brand';
 
@@ -878,19 +878,27 @@ function DiagnoseInner() {
           <label htmlFor="diag-category" className="block text-sm font-semibold text-od-navy">
             Category
           </label>
-          <select
-            id="diag-category"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
-          >
-            <option value="">Pick the closest match</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative mt-2">
+            <select
+              id="diag-category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className={`w-full appearance-none rounded-xl border border-od-border bg-white pl-4 pr-11 py-3 text-base focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1 ${
+                selectedCategory ? 'text-od-navy' : 'text-od-subtle'
+              }`}
+            >
+              <option value="">Pick the closest match</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id} className="text-od-navy">
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-od-muted"
+              aria-hidden="true"
+            />
+          </div>
         </div>
 
         {/* Neighborhood */}
@@ -898,19 +906,27 @@ function DiagnoseInner() {
           <label htmlFor="diag-neighborhood" className="block text-sm font-semibold text-od-navy">
             Neighborhood
           </label>
-          <select
-            id="diag-neighborhood"
-            value={neighborhood}
-            onChange={(e) => setNeighborhood(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
-          >
-            <option value="">Where is this?</option>
-            {neighborhoods.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <div className="relative mt-2">
+            <select
+              id="diag-neighborhood"
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+              className={`w-full appearance-none rounded-xl border border-od-border bg-white pl-4 pr-11 py-3 text-base focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1 ${
+                neighborhood ? 'text-od-navy' : 'text-od-subtle'
+              }`}
+            >
+              <option value="">Where is this?</option>
+              {neighborhoods.map((n) => (
+                <option key={n} value={n} className="text-od-navy">
+                  {n}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-od-muted"
+              aria-hidden="true"
+            />
+          </div>
         </div>
 
         <button

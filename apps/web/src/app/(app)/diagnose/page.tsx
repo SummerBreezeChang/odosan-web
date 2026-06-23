@@ -88,6 +88,7 @@ const neighborhoods = [
   'Piedmont',
   'Emeryville',
   'Alameda',
+  'Other (East Bay)',
 ];
 
 const severityConfig: Record<Severity, { icon: any; color: string; label: string }> = {

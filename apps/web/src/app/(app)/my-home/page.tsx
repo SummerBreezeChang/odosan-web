@@ -256,7 +256,7 @@ function EmptyCard({
   cta: { href: string; label: string };
 }) {
   return (
-    <div className="mt-3 rounded-2xl border border-od-border bg-white p-6 text-center shadow-sm sm:p-8">
+    <div className="mt-3 rounded-2xl border border-od-border bg-white/60 p-6 text-center shadow-[0_1px_2px_rgba(27,56,42,0.05)] sm:p-8">
       <p className="text-base font-semibold text-od-navy">{heading}</p>
       <p className="mt-2 text-sm text-od-muted">{body}</p>
       <a
@@ -273,7 +273,7 @@ function BriefCard({ brief }: { brief: DiagnosisBrief }) {
   const savedDate = new Date(brief.saved_at);
   const Icon = CATEGORY_ICONS[brief.category] ?? Wrench;
   return (
-    <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4 shadow-sm">
+    <li className="flex gap-3 rounded-2xl border border-od-border bg-white/60 p-4 shadow-[0_1px_2px_rgba(27,56,42,0.05)]">
       <div
         aria-hidden
         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
@@ -314,7 +314,7 @@ function BriefCard({ brief }: { brief: DiagnosisBrief }) {
 function SystemCard({ system }: { system: SystemRecord }) {
   const Icon = SYSTEM_ICONS[system.system_type] ?? Hammer;
   return (
-    <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4 shadow-sm">
+    <li className="flex gap-3 rounded-2xl border border-od-border bg-white/60 p-4 shadow-[0_1px_2px_rgba(27,56,42,0.05)]">
       <div
         aria-hidden
         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"

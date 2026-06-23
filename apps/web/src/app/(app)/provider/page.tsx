@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Clock, CheckCircle2, MapPin } from 'lucide-react';
 import { DateDisplay } from '@/components/DateDisplay';
 import { useSession } from '@/lib/auth-client';
+import { CATEGORY_LABELS as categoryLabels } from '@/lib/categories';
 
 type Lead = {
   lead_id: string;
@@ -36,18 +37,6 @@ const severityConfig = {
   urgent: { icon: AlertCircle, color: 'text-od-red', label: 'Urgent' },
   soon: { icon: Clock, color: 'text-od-orange', label: 'Soon' },
   monitor: { icon: CheckCircle2, color: 'text-od-muted', label: 'Monitor' },
-};
-
-const categoryLabels: Record<string, string> = {
-  plumbing_drainage: 'Plumbing & Drainage',
-  gutters_drainage: 'Gutters & Drainage',
-  landscaping: 'Landscaping & Yard',
-  roofing: 'Roofing',
-  electrical: 'Electrical',
-  hvac: 'HVAC',
-  pest_control: 'Pest Control',
-  handyman: 'Handyman',
-  painting: 'Painting',
 };
 
 export default function ProviderInbox() {

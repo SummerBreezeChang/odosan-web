@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { saveBrief, syncBriefToServer } from '@/lib/home-record';
+import { categoryLabel } from '@/lib/categories';
 import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone } from '@/components/brand';
 
 type Step =
@@ -515,31 +516,27 @@ function DiagnoseInner() {
     );
   }
 
-  if (step === 'refining') {
+  if (step === 'diagnosing' || step === 'refining') {
+    const isRefining = step === 'refining';
     return (
-      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 flex items-center justify-center">
-        <div className="text-center max-w-md">
+      <div className="mx-auto flex w-full max-w-md min-h-[60vh] items-center justify-center px-4 sm:px-6">
+        <div className="text-center">
           <div
-            className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full mx-auto mb-6"
+            className="mx-auto mb-6 h-14 w-14 rounded-full border-4 border-od-border border-t-od-ink"
             style={{ animation: 'spin 1s linear infinite' }}
+            aria-hidden="true"
           />
-          <h2 className="text-2xl font-semibold text-od-navy mb-2">Refining with your answers...</h2>
-          <p className="text-sm text-od-muted">A moment while we tighten the estimate range.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === 'diagnosing') {
-    return (
-      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div
-            className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full mx-auto mb-6"
-            style={{ animation: 'spin 1s linear infinite' }}
-          />
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Diagnosing your issue...</h2>
-          <p className="text-sm text-gray-500">This should take just a moment.</p>
+          <h2
+            className="text-[24px] font-semibold leading-[1.2] text-od-ink"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {isRefining ? 'Refining with your answers…' : 'Diagnosing your issue…'}
+          </h2>
+          <p className="mt-2 text-[14px] text-od-muted">
+            {isRefining
+              ? 'A moment while we tighten the estimate range.'
+              : 'This should take just a moment.'}
+          </p>
         </div>
         <style jsx global>{`
           @keyframes spin {
@@ -678,18 +675,24 @@ function DiagnoseInner() {
               {providers.map((provider) => (
                 <div
                   key={provider.provider_id}
-                  className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 transition-colors"
+                  className="bg-white rounded-xl border border-od-border p-6 hover:border-od-leaf/30 transition-colors"
                 >
                   <div className="mb-4">
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">{provider.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">{provider.category}</span>
+                    <h3 className="text-base font-semibold text-od-ink mb-1">{provider.name}</h3>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-xs text-od-muted">
+                        {categoryLabel(provider.category)}
+                      </span>
                       {provider.rating && (
                         <>
-                          <span className="text-gray-300">·</span>
-                          <span className="text-xs text-gray-700">★ {provider.rating}</span>
+                          <span className="text-od-border">·</span>
+                          <span className="text-xs text-od-body">★ {provider.rating}</span>
                         </>
                       )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-od-green-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-od-green">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                        Verified
+                      </span>
                     </div>
                   </div>
 
@@ -698,7 +701,7 @@ function DiagnoseInner() {
                       href={provider.google_maps_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-od-leaf hover:text-od-leaf mb-4 inline-block"
+                      className="text-xs text-od-leaf hover:text-od-ink mb-4 inline-block"
                     >
                       View on Google Maps →
                     </a>
@@ -706,7 +709,7 @@ function DiagnoseInner() {
 
                   <button
                     onClick={() => handleSelectProvider(provider.provider_id)}
-                    className="w-full bg-od-primary-soft text-od-leaf rounded-lg px-4 py-2 text-sm font-medium hover:bg-od-primary-soft transition-colors"
+                    className="w-full rounded-full bg-od-ink px-4 py-3 text-sm font-semibold text-od-bg transition-colors hover:bg-od-leaf"
                   >
                     Connect with {provider.name}
                   </button>

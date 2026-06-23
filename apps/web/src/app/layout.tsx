@@ -75,8 +75,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <SiteHeader />
           {/* Bottom padding reserves space for the persistent BottomNav strip so
-              page content doesn't sit under it on mobile. */}
-          <main className="flex-1 pb-24 sm:pb-28">{children}</main>
+              page content doesn't sit under it on mobile. 72px = nav's outer
+              height (40px pill + 16px container padding + ~16px breathing
+              room); env(safe-area-inset-bottom) lifts above the iPhone home
+              indicator on installed PWAs. */}
+          <main className="flex-1 pb-[calc(72px+env(safe-area-inset-bottom))]">
+            {children}
+          </main>
           <SiteFooter />
           <BottomNav />
         </Providers>

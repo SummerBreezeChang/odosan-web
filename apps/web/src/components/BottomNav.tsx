@@ -28,7 +28,7 @@ export function BottomNav() {
     },
     {
       href: '/my-home',
-      label: 'My Home',
+      label: 'Saved',
       Icon: BookmarkIcon,
       match: (p: string) =>
         p === '/my-home' || p.startsWith('/my-home/') || p === '/dashboard',

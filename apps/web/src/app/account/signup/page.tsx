@@ -97,7 +97,7 @@ function SignUpForm() {
 				<button
 					type="submit"
 					disabled={loading}
-					className="rounded-[8px] bg-blue-600 p-[12px] text-[16px] font-medium text-white disabled:opacity-50"
+					className="rounded-[8px] bg-od-ink p-[12px] text-[16px] font-medium text-white disabled:opacity-50"
 				>
 					{loading ? "Creating account…" : "Sign Up"}
 				</button>
@@ -106,7 +106,7 @@ function SignUpForm() {
 
 				<a
 					href={`/account/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-					className="text-center text-[14px] text-blue-600 hover:underline"
+					className="text-center text-[14px] text-od-leaf hover:underline"
 				>
 					Already have an account? Sign in
 				</a>

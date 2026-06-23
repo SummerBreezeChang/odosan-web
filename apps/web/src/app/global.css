@@ -3,8 +3,10 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'DM Sans', system-ui, sans-serif;
+    /* Font stacks — actual loading via next/font/google in layout.tsx,
+       which exposes --font-fraunces and --font-inter as CSS variables. */
+    --font-display: var(--font-fraunces), 'Fraunces', 'Iowan Old Style', Georgia, serif;
+    --font-body: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
     --background: hsl(0 0% 100%);
     --foreground: hsl(240 10% 3.9%);
     --card: hsl(0 0% 100%);
@@ -113,22 +115,38 @@
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
 
-    /* Odosan brand tokens */
-    --color-od-bg: #F5F0E8;
-    --color-od-cream: #FAF7F2;
-    --color-od-primary: #2563EB;
-    --color-od-primary-soft: #EFF6FF;
-    --color-od-navy: #111827;
-    --color-od-muted: #6B7280;
-    --color-od-subtle: #9CA3AF;
-    --color-od-border: #E5E7EB;
-    --color-od-green: #16A34A;
-    --color-od-green-soft: #F0FDF4;
-    --color-od-orange: #EA580C;
-    --color-od-orange-soft: #FFFBEB;
-    --color-od-red: #DC2626;
-    --color-od-red-soft: #FEF2F2;
-    --color-od-track: #F3F4F6;
+    /* ─── Odosan brand tokens — forest green on cream ──────────────── */
+    /* Page background */
+    --color-od-bg: #F4EEE6;
+    --color-od-cream: #FAF5EC;
+
+    /* Ink (headings, primary). Aliased to --color-od-navy so existing
+       text-od-navy / bg-od-navy utility classes re-color automatically. */
+    --color-od-ink: #1B4332;
+    --color-od-navy: #1B4332;
+
+    /* Accent / links / active (leaf green). Aliased to --color-od-primary
+       so existing text-od-primary / bg-od-primary utility classes re-color. */
+    --color-od-leaf: #2C6E49;
+    --color-od-primary: #2C6E49;
+    --color-od-primary-soft: #DCE9DD;
+
+    /* Body + muted */
+    --color-od-body: #2E3A33;
+    --color-od-muted: #6E7872;
+    --color-od-subtle: #8E988F;
+
+    /* Hairline + neutral track (replaces hard gray borders) */
+    --color-od-border: rgba(27, 56, 42, 0.08);
+    --color-od-track: rgba(27, 56, 42, 0.04);
+
+    /* Severity / chip tints (monitor=good green · soon=clay · urgent=brick) */
+    --color-od-green: #2F5A3A;
+    --color-od-green-soft: #DCE9DD;
+    --color-od-orange: #8A5A1B;
+    --color-od-orange-soft: #F6E6CC;
+    --color-od-red: #8A3B2E;
+    --color-od-red-soft: #F3DEDA;
 }
 
 @layer base {

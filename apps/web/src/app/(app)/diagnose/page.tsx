@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { saveBrief, syncBriefToServer } from '@/lib/home-record';
+import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone } from '@/components/brand';
 
 type Step =
   | 'intake'
@@ -553,95 +554,89 @@ function DiagnoseInner() {
   }
 
   if (step === 'result' && diagnosis) {
-    const SeverityIcon = severityConfig[diagnosis.severity].icon;
+    const diyRecommended = diagnosis.diyOrPro === 'diy';
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
-        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-          <div className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
-            <div>
-              <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>Diagnosis</h1>
-              <p className="text-sm text-gray-500">Here&apos;s what we found</p>
-            </div>
-            {typeof diagnosis.confidence === 'number' && (
-              <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                  diagnosis.confidence >= 85
-                    ? 'bg-od-green-soft text-od-green'
-                    : diagnosis.confidence >= 60
-                      ? 'bg-od-orange-soft text-od-orange'
-                      : 'bg-od-red-soft text-od-red'
-                }`}
-                title="How confident the model is in this diagnosis"
-              >
-                Confidence {diagnosis.confidence}%
-              </span>
-            )}
-          </div>
+      <div className="mx-auto w-full max-w-xl px-4 pt-6 pb-8 sm:px-6 sm:pt-8">
+        <SectionHeader
+          eyebrow="Diagnosis"
+          title={diagnosis.issue}
+          size="h1"
+        />
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className={`mt-1 ${severityConfig[diagnosis.severity].color}`}>
-                <SeverityIcon className="w-6 h-6" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-lg font-semibold text-gray-900">{diagnosis.issue}</h2>
-                  <span
-                    className={`text-xs font-medium px-2 py-1 rounded-full border border-gray-200 ${severityConfig[diagnosis.severity].color}`}
-                  >
-                    {severityConfig[diagnosis.severity].label}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">{diagnosis.explanation}</p>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 pt-4 space-y-3">
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Scope of work</div>
-                <div className="text-sm text-gray-900">{diagnosis.scopeOfWork}</div>
-              </div>
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Fair price range</div>
-                <div className="text-sm text-gray-900 font-semibold">
-                  {diagnosis.fairPriceRange}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Recommendation</div>
-                <div className="text-sm text-gray-900">
-                  {diagnosis.diyOrPro === 'diy'
-                    ? 'You may be able to DIY this'
-                    : 'Hire a professional'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Fork: DIY and Pro paths, recommended leads — both reachable. */}
-          {diagnosis.diyOrPro === 'diy' ? (
-            <>
-              <DiySection
-                shopping={shopping}
-                loading={shoppingLoading}
-                query={diagnosis.diyShoppingQuery ?? ''}
-                primary
-              />
-              <ProSecondary onClick={handleViewMatches} providerCount={providers.length} />
-            </>
-          ) : (
-            <>
-              <ProPrimary onClick={handleViewMatches} providerCount={providers.length} />
-              <DiySection
-                shopping={shopping}
-                loading={shoppingLoading}
-                query={diagnosis.diyShoppingQuery ?? ''}
-                primary={false}
-              />
-            </>
+        {/* Severity + confidence chips */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Chip tone={severityTone(diagnosis.severity)}>
+            {severityConfig[diagnosis.severity].label}
+          </Chip>
+          {typeof diagnosis.confidence === 'number' && (
+            <Chip tone={confidenceTone(diagnosis.confidence)}>
+              Confidence {diagnosis.confidence}%
+            </Chip>
           )}
+        </div>
 
-          {/* Save the brief to the home record. */}
+        {/* Hero: fair price range, prominent (Fraunces 30px) */}
+        <Card className="mt-5">
+          <Label>Fair price range</Label>
+          <p
+            className="mt-1 text-[30px] font-semibold leading-[1.15] text-od-ink"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {diagnosis.fairPriceRange}
+          </p>
+          <p className="mt-3 text-[15px] leading-[1.5] text-od-body">
+            {diagnosis.explanation}
+          </p>
+        </Card>
+
+        {/* Scope of work */}
+        <Card className="mt-3">
+          <Label>Scope of work</Label>
+          <p className="mt-1 text-[15px] leading-[1.5] text-od-body">
+            {diagnosis.scopeOfWork}
+          </p>
+        </Card>
+
+        {/* DIY vs Pro fork — two equal FeatureTiles */}
+        <div className="mt-5">
+          <Label>What to do next</Label>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FeatureTile
+              tone="good"
+              recommended={!diyRecommended}
+              onClick={handleViewMatches}
+              eyebrow="Hire a pro"
+              title={
+                providers.length > 0
+                  ? `${providers.length} vetted ${providers.length === 1 ? 'pro' : 'pros'} matched`
+                  : 'Get matched with a local pro'
+              }
+              body="Pre-diagnosed brief sent to vetted pros in your area. Quotes back within 24 hours."
+              cta="View matched providers"
+            />
+
+            <FeatureTile
+              tone="soon"
+              recommended={diyRecommended}
+              eyebrow="Fix it yourself"
+              title={diagnosis.diyShoppingQuery || 'See the exact parts to buy'}
+              body="Skip the labor cost. The parts most homeowners use for this fix."
+              cta="Find on Amazon"
+            />
+          </div>
+          {/* DIY parts grid / fallback CTA still renders below the tile */}
+          <div className="mt-3">
+            <DiySection
+              shopping={shopping}
+              loading={shoppingLoading}
+              query={diagnosis.diyShoppingQuery ?? ''}
+              primary={diyRecommended}
+            />
+          </div>
+        </div>
+
+        {/* Save the brief to the home record */}
+        <div className="mt-5">
           <SaveBriefBanner
             savedBriefId={savedBriefId}
             saving={savingBrief}
@@ -673,7 +668,7 @@ function DiagnoseInner() {
               </p>
               <button
                 onClick={handleStartOver}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="text-sm font-medium text-od-leaf hover:text-od-leaf"
               >
                 Start over
               </button>
@@ -703,7 +698,7 @@ function DiagnoseInner() {
                       href={provider.google_maps_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:text-blue-700 mb-4 inline-block"
+                      className="text-xs text-od-leaf hover:text-od-leaf mb-4 inline-block"
                     >
                       View on Google Maps →
                     </a>
@@ -711,7 +706,7 @@ function DiagnoseInner() {
 
                   <button
                     onClick={() => handleSelectProvider(provider.provider_id)}
-                    className="w-full bg-blue-50 text-blue-600 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-100 transition-colors"
+                    className="w-full bg-od-primary-soft text-od-leaf rounded-lg px-4 py-2 text-sm font-medium hover:bg-od-primary-soft transition-colors"
                   >
                     Connect with {provider.name}
                   </button>

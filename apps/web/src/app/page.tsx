@@ -96,66 +96,68 @@ export default function Home() {
     <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
       {/* Hero */}
       <section>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-od-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-od-leaf">
           Your home&apos;s dad
         </p>
         <h1
-          className="mt-3 text-[34px] font-bold leading-[1.1] text-od-navy sm:text-[40px]"
+          className="mt-3 text-[30px] font-semibold leading-[1.15] text-od-ink sm:text-[36px]"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Know what&apos;s wrong — and whether you can fix it yourself.
         </h1>
-        <p className="mt-4 text-base leading-relaxed text-od-muted">
+        <p className="mt-4 text-[15px] leading-[1.5] text-od-body">
           Snap a photo. Odosan tells you what it is, what it should cost, and whether it&apos;s a
           quick DIY or worth calling a pro — so you spend the least to keep your home healthy.
         </p>
 
         <Link
           href="/diagnose"
-          className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-od-navy px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-od-navy/90"
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-od-ink px-6 py-3.5 text-[15px] font-semibold text-od-bg transition-colors hover:bg-od-leaf"
         >
           <CameraIcon className="h-5 w-5" />
           Diagnose a problem
         </Link>
-        <p className="mt-3 text-center text-xs text-od-subtle">Free. No account needed.</p>
+        <p className="mt-3 text-center text-[13px] text-od-subtle">Free. No account needed.</p>
       </section>
 
-      {/* How it works */}
+      {/* How it works — tightened: smaller padding, single-row eyebrow with icon */}
       <section className="mt-10">
         <h2
-          className="text-xl font-bold text-od-navy"
+          className="text-[20px] font-semibold leading-[1.2] text-od-ink"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           How it works
         </h2>
-        <div className="mt-4 flex flex-col gap-3">
+        <div className="mt-3 flex flex-col gap-2">
           {STEPS.map(({ n, title, desc, Icon }) => (
             <div
               key={n}
-              className="rounded-2xl border border-od-border bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+              className="rounded-[18px] border border-od-border bg-white/60 px-4 py-3.5 shadow-[0_1px_2px_rgba(27,56,42,0.05)]"
             >
-              <div className="flex items-center gap-2 text-od-primary">
-                <span className="text-xs font-semibold tracking-wide text-od-subtle">{n}</span>
+              <div className="flex items-center gap-2 text-od-leaf">
+                <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-od-subtle">
+                  {n}
+                </span>
                 <Icon className="h-4 w-4" />
               </div>
               <h3
-                className="mt-2 text-lg font-bold text-od-navy"
+                className="mt-1 text-[17px] font-semibold leading-[1.25] text-od-ink"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 {title}
               </h3>
-              <p className="mt-1 text-sm leading-relaxed text-od-muted">{desc}</p>
+              <p className="mt-1 text-[13px] leading-[1.5] text-od-muted">{desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Where it's going */}
-      <section className="mt-3">
-        <div className="flex items-start gap-3 rounded-2xl border border-od-border bg-white/60 p-5">
-          <SparkIcon className="mt-0.5 h-5 w-5 shrink-0 text-od-primary" />
-          <p className="text-sm leading-relaxed text-od-muted">
-            <span className="font-semibold text-od-navy">Where it&apos;s going.</span> One day, walk
+      <section className="mt-4">
+        <div className="flex items-start gap-3 rounded-[18px] border border-od-border bg-white/50 px-4 py-3.5">
+          <SparkIcon className="mt-0.5 h-5 w-5 shrink-0 text-od-leaf" />
+          <p className="text-[13px] leading-[1.5] text-od-muted">
+            <span className="font-semibold text-od-ink">Where it&apos;s going.</span> One day, walk
             through your home once and Odosan maps everything that needs care — turning maintenance
             into resale equity.
           </p>

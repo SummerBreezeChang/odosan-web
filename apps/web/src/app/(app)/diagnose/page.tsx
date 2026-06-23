@@ -623,18 +623,16 @@ function DiagnoseInner() {
               eyebrow="Fix it yourself"
               title={diagnosis.diyShoppingQuery || 'See the exact parts to buy'}
               body="Skip the labor cost. The parts most homeowners use for this fix."
-              cta="Find on Amazon"
+              cta={shoppingLoading ? 'Finding parts…' : 'Find on Amazon'}
+              href={shopping?.searchUrl ?? undefined}
+              external
             />
           </div>
-          {/* DIY parts grid / fallback CTA still renders below the tile */}
-          <div className="mt-3">
-            <DiySection
-              shopping={shopping}
-              loading={shoppingLoading}
-              query={diagnosis.diyShoppingQuery ?? ''}
-              primary={diyRecommended}
-            />
-          </div>
+          {/* Compliance disclosure — must stay visible adjacent to the
+              affiliate-linked "Fix it yourself" tile. */}
+          <p className="mt-3 text-right text-[11px] text-od-subtle">
+            As an Amazon Associate, Odosan earns from qualifying purchases.
+          </p>
         </div>
 
         {/* Save the brief to the home record */}
@@ -947,113 +945,6 @@ function DiagnoseInner() {
 }
 
 // ─── Result-screen sub-components ────────────────────────────────────────────
-
-function DiySection({
-  shopping,
-  loading,
-  query,
-  primary,
-}: {
-  shopping: ShoppingBucket;
-  loading: boolean;
-  query: string;
-  primary: boolean;
-}) {
-  const containerClass = primary
-    ? 'mb-4 rounded-2xl border border-od-primary/30 bg-od-primary-soft p-5'
-    : 'mb-4 rounded-2xl border border-od-border bg-white p-5';
-  return (
-    <div className={containerClass}>
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <p className={`text-xs font-semibold uppercase tracking-wide ${primary ? 'text-od-primary' : 'text-od-muted'}`}>
-            {primary ? 'Recommended · do it yourself' : 'Or — supplies you can use'}
-          </p>
-          <h3 className="mt-1 text-lg font-bold text-od-navy">
-            {primary ? 'Fix it yourself' : 'DIY parts'}
-          </h3>
-        </div>
-        {query && <p className="text-[11px] text-od-subtle">Search: “{query}”</p>}
-      </div>
-
-      {loading && <p className="text-sm text-od-muted">Loading parts on Amazon…</p>}
-
-      {!loading && shopping?.error && (
-        <p className="text-xs text-od-red">Amazon error: {shopping.error}</p>
-      )}
-
-      {!loading &&
-        shopping &&
-        shopping.products.length === 0 &&
-        !shopping.error &&
-        shopping.searchUrl && (
-          <a
-            href={shopping.searchUrl}
-            target="_blank"
-            rel="noopener nofollow sponsored"
-            className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-od-border bg-white px-4 py-4 transition-colors hover:border-od-primary"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-od-navy">
-                🛒 Find these parts on Amazon
-              </p>
-              <p className="mt-0.5 truncate text-xs text-od-muted">
-                Search: "{shopping.query}"
-              </p>
-            </div>
-            <span aria-hidden className="shrink-0 text-od-primary">→</span>
-          </a>
-        )}
-
-      {!loading &&
-        shopping &&
-        shopping.products.length === 0 &&
-        !shopping.error &&
-        !shopping.searchUrl && (
-          <p className="text-sm text-od-muted">No matching parts found.</p>
-        )}
-
-      {!loading && shopping && shopping.products.length > 0 && (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {shopping.products.slice(0, 3).map((p) => (
-              <a
-                key={p.asin}
-                href={p.url}
-                target="_blank"
-                rel="noopener nofollow sponsored"
-                className="flex flex-col rounded-xl border border-od-border bg-white p-3 transition-colors hover:border-od-primary"
-              >
-                {p.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.image} alt="" className="mx-auto h-28 object-contain" loading="lazy" />
-                )}
-                <p className="mt-2 line-clamp-3 text-sm font-semibold text-od-navy">{p.title}</p>
-                <div className="mt-auto flex items-baseline justify-between pt-2">
-                  <span className="text-sm font-bold text-od-navy">{p.price ?? '—'}</span>
-                  {p.rating !== null && (
-                    <span className="text-[11px] text-od-muted">
-                      ★ {p.rating.toFixed(1)}
-                    </span>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-          <p className="mt-3 text-[11px] text-od-subtle">
-            As an Amazon Associate, Odosan earns from qualifying purchases.
-          </p>
-        </>
-      )}
-
-      {!loading && shopping && shopping.products.length === 0 && shopping.searchUrl && (
-        <p className="mt-3 text-[11px] text-od-subtle">
-          As an Amazon Associate, Odosan earns from qualifying purchases.
-        </p>
-      )}
-    </div>
-  );
-}
 
 function ProPrimary({
   onClick,

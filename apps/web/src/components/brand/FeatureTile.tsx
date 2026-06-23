@@ -10,6 +10,7 @@ import type { ReactNode } from 'react';
 export function FeatureTile({
   href,
   onClick,
+  external = false,
   eyebrow,
   title,
   body,
@@ -20,6 +21,9 @@ export function FeatureTile({
 }: {
   href?: string;
   onClick?: () => void;
+  /** If true, render as <a target="_blank" rel="sponsored nofollow noopener">
+   *  instead of next/link — for affiliate / outbound links. */
+  external?: boolean;
   eyebrow: ReactNode;
   title: ReactNode;
   body?: ReactNode;
@@ -79,6 +83,18 @@ export function FeatureTile({
   );
 
   if (href) {
+    if (external) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="sponsored nofollow noopener"
+          className={`block ${className}`}
+        >
+          {inner}
+        </a>
+      );
+    }
     return (
       <Link href={href} className={`block ${className}`}>
         {inner}

@@ -4,8 +4,8 @@
   "description": "Privacy-first AI home maintenance concierge",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F0E8",
-  "theme_color": "#111827",
+  "background_color": "#F4EEE6",
+  "theme_color": "#1B4332",
   "orientation": "portrait-primary",
   "icons": [
     {

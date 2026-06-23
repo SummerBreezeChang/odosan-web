@@ -1,7 +1,10 @@
 // Odosan service worker — app-shell caching for PWA install + offline tolerance.
 // Bump CACHE_VERSION any time you change shell behavior so old clients refresh.
 
-const CACHE_VERSION = 'odosan-v3';
+// v4 (2026-06-22): bump to evict old black-icon assets cached by v3. Without
+// this bump, returning visitors keep getting the pre-recolor PNGs from their
+// SW cache forever (cache-first strategy below).
+const CACHE_VERSION = 'odosan-v4';
 const SHELL_URLS = [
   '/',
   '/diagnose',

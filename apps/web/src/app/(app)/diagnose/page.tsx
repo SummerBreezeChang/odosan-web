@@ -76,6 +76,7 @@ const categories = [
   { id: 'pest_control', label: 'Pest Control' },
   { id: 'handyman', label: 'Handyman' },
   { id: 'painting', label: 'Painting' },
+  { id: 'other', label: 'Other / not sure' },
 ];
 
 const neighborhoods = [

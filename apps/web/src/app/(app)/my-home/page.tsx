@@ -113,14 +113,30 @@ export default function MyHomePage() {
     async function refresh() {
       if (session?.user) {
         const local = loadHomeRecord();
-        const hasLocal = local.briefs.length > 0 || local.systems.length > 0;
-        if (hasLocal && migrationStatus === 'idle') {
+        // Sample seeds (is_sample) should NEVER trigger migration — they
+        // belong only in localStorage. Without this filter, the demo
+        // account's auto-seed would fire migration on every visit and
+        // we'd accumulate phantom records in Aurora.
+        const hasRealLocal =
+          local.briefs.some((b) => !b.is_sample) || local.systems.length > 0;
+        if (hasRealLocal && migrationStatus === 'idle') {
           setMigrationStatus('migrating');
           const result = await migrateLocalToRemote();
           if (cancelled) return;
           if (result !== null) {
             try {
-              window.localStorage.removeItem('odosan:home-record');
+              // Preserve sample briefs after migration — only the real
+              // briefs (now in Aurora) should be removed from localStorage.
+              const remaining = loadHomeRecord();
+              const samplesOnly = remaining.briefs.filter((b) => b.is_sample);
+              if (samplesOnly.length > 0) {
+                window.localStorage.setItem(
+                  'odosan:home-record',
+                  JSON.stringify({ briefs: samplesOnly, systems: [] })
+                );
+              } else {
+                window.localStorage.removeItem('odosan:home-record');
+              }
             } catch {}
             setMigrationStatus('done');
           } else {
@@ -166,18 +182,23 @@ export default function MyHomePage() {
 
   // Demo accounts (whitelisted in lib/home-record) get the sample
   // diagnoses auto-loaded the first time they land on /my-home with an
-  // empty record — populated demo without a manual click. Fires once per
-  // session via a ref so we don't loop after the seed insertion.
+  // empty record. Two layers of guard so it never double-fires:
+  //   1. Per-component ref guards against StrictMode double-render
+  //   2. is_sample check guards across remounts / refreshes — if a sample
+  //      brief is already in state we never re-seed, no matter what
+  //      triggered the effect.
   const autoSeededRef = useRef(false);
   useEffect(() => {
     if (autoSeededRef.current) return;
     if (sessionLoading) return;
     if (!isDemoUser) return;
+    // Guard against re-seeding when samples are already loaded.
+    if (briefs.some((b) => b.is_sample)) return;
     if (briefs.length > 0) return;
     autoSeededRef.current = true;
     seedSampleBriefs();
     setBriefs(loadHomeRecord().briefs);
-  }, [isDemoUser, briefs.length, sessionLoading]);
+  }, [isDemoUser, briefs, sessionLoading]);
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
@@ -240,8 +261,12 @@ export default function MyHomePage() {
         {isDemoUser && (
           <button
             type="button"
-            onClick={() => {
-              clearAllBriefs();
+            onClick={async () => {
+              // Wipe both localStorage and Aurora (clearAllBriefs is async
+              // now and calls /api/home-record/clear), then reseed the
+              // three samples. Guarantees a clean slate between takes.
+              await clearAllBriefs();
+              autoSeededRef.current = false;
               seedSampleBriefs();
               setBriefs(loadHomeRecord().briefs);
             }}

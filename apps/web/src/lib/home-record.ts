@@ -51,6 +51,12 @@ export type DiagnosisBrief = {
   // Older briefs that pre-date this field are treated as 'open' on load.
   status?: BriefStatus;
   fixed_at?: string;
+  // ── Demo seeding ──────────────────────────────────────────────────────
+  // True for briefs created by seedSampleBriefs(). Sample briefs are
+  // localStorage-only by design — syncBriefToServer and
+  // migrateLocalToRemote both skip them so Aurora never accumulates
+  // duplicates across demo recordings.
+  is_sample?: boolean;
 };
 
 export type HomeRecord = {
@@ -151,10 +157,23 @@ export function isDemoAccount(email: string | null | undefined): boolean {
   return DEMO_EMAILS.has(email.toLowerCase());
 }
 
-/** Wipe every saved brief from localStorage. Used by Reset demo data. */
-export function clearAllBriefs(): void {
+/**
+ * Wipe every saved brief from localStorage AND, if the user is signed in,
+ * from Aurora. Used by Reset demo data so reseeding always starts from a
+ * clean slate. Fires the server call best-effort — local always succeeds
+ * even if the server call 401s for anon users.
+ */
+export async function clearAllBriefs(): Promise<void> {
   const stored = loadHomeRecord();
   writeRecord({ ...stored, briefs: [] });
+  try {
+    await fetch('/api/home-record/clear', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // Non-fatal — local is wiped either way.
+  }
 }
 
 /**
@@ -184,6 +203,7 @@ export function seedSampleBriefs(): DiagnosisBrief[] {
       diyShoppingQuery: 'PVC P-trap kit 1.5 inch',
       saved_at: new Date(now - 1 * day).toISOString(),
       status: 'open',
+      is_sample: true,
     },
     {
       id: genId(),
@@ -201,6 +221,7 @@ export function seedSampleBriefs(): DiagnosisBrief[] {
       diyShoppingQuery: 'MERV 11 furnace filter 16x25x1',
       saved_at: new Date(now - 5 * day).toISOString(),
       status: 'planned',
+      is_sample: true,
     },
     {
       id: genId(),
@@ -219,6 +240,7 @@ export function seedSampleBriefs(): DiagnosisBrief[] {
       saved_at: new Date(now - 10 * day).toISOString(),
       status: 'fixed',
       fixed_at: new Date(now - 6 * day).toISOString(),
+      is_sample: true,
     },
   ];
   const updated = [...samples, ...stored.briefs].slice(0, 20);
@@ -269,6 +291,9 @@ export async function fetchRemoteRecord(): Promise<HomeRecord | null> {
 }
 
 export async function syncBriefToServer(brief: Omit<DiagnosisBrief, 'id' | 'saved_at'>): Promise<void> {
+  // Sample briefs are localStorage-only by design — never ship to Aurora,
+  // so the demo seed can never duplicate itself there.
+  if ((brief as { is_sample?: boolean }).is_sample) return;
   try {
     await fetch('/api/home-record/brief', {
       method: 'POST',
@@ -306,7 +331,11 @@ export async function migrateLocalToRemote(): Promise<{
 } | null> {
   if (!isBrowser()) return null;
   const local = loadHomeRecord();
-  if (local.briefs.length === 0 && local.systems.length === 0) {
+  // Strip sample briefs before migration — they are demo seed data and
+  // belong only in localStorage. Without this filter we'd push them to
+  // Aurora on every sign-in and accumulate duplicates.
+  const realBriefs = local.briefs.filter((b) => !b.is_sample);
+  if (realBriefs.length === 0 && local.systems.length === 0) {
     return { briefsInserted: 0, systemsInserted: 0 };
   }
   try {
@@ -314,7 +343,7 @@ export async function migrateLocalToRemote(): Promise<{
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(local),
+      body: JSON.stringify({ briefs: realBriefs, systems: local.systems }),
     });
     if (!res.ok) return null;
     return (await res.json()) as { briefsInserted: number; systemsInserted: number };

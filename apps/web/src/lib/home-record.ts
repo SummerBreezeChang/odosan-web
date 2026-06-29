@@ -30,6 +30,8 @@ export type SystemRecord = {
   documented_at: string;
 };
 
+export type BriefStatus = 'open' | 'planned' | 'fixed';
+
 export type DiagnosisBrief = {
   id: string;
   category: string;
@@ -43,6 +45,12 @@ export type DiagnosisBrief = {
   confidence: number;
   diyShoppingQuery: string;
   saved_at: string;
+  // ── Journey tracking ──────────────────────────────────────────────────
+  // status defaults to 'open' on save. fixed_at is stamped when the user
+  // marks the brief as fixed and cleared if they flip back to open/planned.
+  // Older briefs that pre-date this field are treated as 'open' on load.
+  status?: BriefStatus;
+  fixed_at?: string;
 };
 
 export type HomeRecord = {
@@ -113,6 +121,7 @@ export function saveBrief(brief: Omit<DiagnosisBrief, 'id' | 'saved_at'>): Diagn
     ...brief,
     id: genId(),
     saved_at: new Date().toISOString(),
+    status: 'open',
   };
   const updated = [next, ...stored.briefs].slice(0, 20);
   writeRecord({ ...stored, briefs: updated });
@@ -125,6 +134,29 @@ export function removeBrief(briefId: string): void {
     ...stored,
     briefs: stored.briefs.filter((b) => b.id !== briefId),
   });
+}
+
+/**
+ * Set the status of a brief. Stamps fixed_at on transition to 'fixed' and
+ * clears it on transition away. localStorage-only for now — Aurora sync
+ * is Phase 2 once we add a status column + PATCH endpoint.
+ */
+export function updateBriefStatus(briefId: string, status: BriefStatus): DiagnosisBrief | null {
+  const stored = loadHomeRecord();
+  let updated: DiagnosisBrief | null = null;
+  const briefs = stored.briefs.map((b) => {
+    if (b.id !== briefId) return b;
+    const next: DiagnosisBrief = {
+      ...b,
+      status,
+      fixed_at: status === 'fixed' ? new Date().toISOString() : undefined,
+    };
+    updated = next;
+    return next;
+  });
+  if (!updated) return null;
+  writeRecord({ ...stored, briefs });
+  return updated;
 }
 
 // ─── Server sync ──────────────────────────────────────────────────────────────

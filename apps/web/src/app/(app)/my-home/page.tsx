@@ -20,6 +20,8 @@ import {
   fetchRemoteRecord,
   loadHomeRecord,
   migrateLocalToRemote,
+  updateBriefStatus,
+  type BriefStatus,
   type DiagnosisBrief,
   type SystemRecord,
   type SystemType,
@@ -276,7 +278,14 @@ export default function MyHomePage() {
             Diagnose another
           </ButtonLink>
         </div>
-        <DiagnosesPanel briefs={briefs} />
+        <DiagnosesPanel
+          briefs={briefs}
+          onStatusChange={(id, status) => {
+            const updated = updateBriefStatus(id, status);
+            if (!updated) return;
+            setBriefs((prev) => prev.map((b) => (b.id === id ? updated : b)));
+          }}
+        />
       </section>
 
       {/* ── Take care of your home — three action surfaces ── */}
@@ -341,7 +350,34 @@ export default function MyHomePage() {
 
 // ─── Diagnoses panel ─────────────────────────────────────────────────────────
 
-function DiagnosesPanel({ briefs }: { briefs: DiagnosisBrief[] }) {
+const STATUS_TONE: Record<BriefStatus, 'urgent' | 'soon' | 'good'> = {
+  open: 'urgent',
+  planned: 'soon',
+  fixed: 'good',
+};
+
+const STATUS_LABEL: Record<BriefStatus, string> = {
+  open: 'Open',
+  planned: 'Planned',
+  fixed: 'Fixed',
+};
+
+function briefStatus(b: DiagnosisBrief): BriefStatus {
+  return b.status ?? 'open';
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const ms = new Date(toIso).getTime() - new Date(fromIso).getTime();
+  return Math.max(0, Math.round(ms / 86_400_000));
+}
+
+function DiagnosesPanel({
+  briefs,
+  onStatusChange,
+}: {
+  briefs: DiagnosisBrief[];
+  onStatusChange: (id: string, status: BriefStatus) => void;
+}) {
   if (briefs.length === 0) {
     return (
       <EmptyState
@@ -351,18 +387,69 @@ function DiagnosesPanel({ briefs }: { briefs: DiagnosisBrief[] }) {
       />
     );
   }
+
+  const counts = briefs.reduce(
+    (acc, b) => {
+      acc[briefStatus(b)] += 1;
+      return acc;
+    },
+    { open: 0, planned: 0, fixed: 0 } as Record<BriefStatus, number>
+  );
+
   return (
-    <ul className="space-y-3">
-      {briefs.map((brief) => (
-        <DiagnosisCard key={brief.id} brief={brief} />
-      ))}
-    </ul>
+    <>
+      {/* Counter strip — the journey summary, at a glance */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-od-muted">
+        <StatusCount tone="urgent" count={counts.open} label="Open" />
+        <StatusCount tone="soon" count={counts.planned} label="Planned" />
+        <StatusCount tone="good" count={counts.fixed} label="Fixed" />
+      </div>
+      <ul className="space-y-3">
+        {briefs.map((brief) => (
+          <DiagnosisCard
+            key={brief.id}
+            brief={brief}
+            onStatusChange={(status) => onStatusChange(brief.id, status)}
+          />
+        ))}
+      </ul>
+    </>
   );
 }
 
-function DiagnosisCard({ brief }: { brief: DiagnosisBrief }) {
+function StatusCount({
+  tone,
+  count,
+  label,
+}: {
+  tone: 'urgent' | 'soon' | 'good';
+  count: number;
+  label: string;
+}) {
+  const dotColor =
+    tone === 'urgent' ? 'bg-od-red' : tone === 'soon' ? 'bg-od-orange' : 'bg-od-green';
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-2 w-2 rounded-full ${dotColor}`} aria-hidden="true" />
+      <span className="font-semibold text-od-navy">{count}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function DiagnosisCard({
+  brief,
+  onStatusChange,
+}: {
+  brief: DiagnosisBrief;
+  onStatusChange: (status: BriefStatus) => void;
+}) {
   const Icon = BRIEF_CATEGORY_ICONS[brief.category] ?? Hammer;
   const categoryLabel = BRIEF_CATEGORY_LABELS[brief.category] ?? brief.category;
+  const status = briefStatus(brief);
+  const daysToFix =
+    status === 'fixed' && brief.fixed_at ? daysBetween(brief.saved_at, brief.fixed_at) : null;
+
   return (
     <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4">
       <div
@@ -380,6 +467,7 @@ function DiagnosisCard({ brief }: { brief: DiagnosisBrief }) {
           <Chip tone={brief.diyOrPro === 'diy' ? 'leaf' : 'neutral'}>
             {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
           </Chip>
+          <Chip tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Chip>
           <span className="ml-auto text-[11px] text-od-subtle">
             {new Date(brief.saved_at).toLocaleDateString()}
           </span>
@@ -397,6 +485,43 @@ function DiagnosisCard({ brief }: { brief: DiagnosisBrief }) {
           Fair range:{' '}
           <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
         </p>
+
+        {/* Status toggle — three segmented buttons */}
+        <div
+          className="mt-3 inline-flex overflow-hidden rounded-full border border-od-border bg-white text-[12px] font-semibold"
+          role="group"
+          aria-label="Update status"
+        >
+          {(['open', 'planned', 'fixed'] as const).map((s, i) => {
+            const active = s === status;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => onStatusChange(s)}
+                aria-pressed={active}
+                className={`px-3 py-1.5 transition-colors ${
+                  i > 0 ? 'border-l border-od-border' : ''
+                } ${
+                  active
+                    ? 'bg-od-ink text-od-bg'
+                    : 'bg-white text-od-navy hover:bg-od-cream'
+                }`}
+              >
+                {STATUS_LABEL[s]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Resolution annotation — only when Fixed */}
+        {status === 'fixed' && brief.fixed_at && (
+          <p className="mt-2 text-[12px] text-od-green">
+            ✓ Fixed {new Date(brief.fixed_at).toLocaleDateString()}
+            {daysToFix !== null &&
+              ` · ${daysToFix} ${daysToFix === 1 ? 'day' : 'days'} from diagnosis`}
+          </p>
+        )}
       </div>
     </li>
   );

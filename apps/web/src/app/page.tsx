@@ -129,7 +129,7 @@ export default function Home() {
           How it works
         </h2>
         <div className="mt-3 flex flex-col gap-2">
-          {STEPS.map(({ n, title, desc, Icon }) => (
+          {STEPS.map(({ n, title, desc }) => (
             <div
               key={n}
               className="rounded-[18px] border border-od-border bg-white/60 px-4 py-3.5 shadow-[0_1px_2px_rgba(27,56,42,0.05)]"
@@ -138,7 +138,6 @@ export default function Home() {
                 <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-od-subtle">
                   {n}
                 </span>
-                <Icon className="h-4 w-4" />
               </div>
               <h3
                 className="mt-1 text-[17px] font-semibold leading-[1.25] text-od-ink"

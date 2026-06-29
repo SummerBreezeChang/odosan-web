@@ -136,6 +136,27 @@ export function removeBrief(briefId: string): void {
   });
 }
 
+// ── Demo accounts ────────────────────────────────────────────────────────
+// Whitelist of email addresses that get the populated sample diagnoses
+// auto-loaded on /my-home. Everyone else sees the clean empty state.
+// Add demo@odosan.tech (or any other dedicated demo address) once it's
+// created via /account/signup.
+const DEMO_EMAILS: ReadonlySet<string> = new Set([
+  'hisummerchang@gmail.com',
+  'demo@odosan.tech',
+]);
+
+export function isDemoAccount(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return DEMO_EMAILS.has(email.toLowerCase());
+}
+
+/** Wipe every saved brief from localStorage. Used by Reset demo data. */
+export function clearAllBriefs(): void {
+  const stored = loadHomeRecord();
+  writeRecord({ ...stored, briefs: [] });
+}
+
 /**
  * Seed three sample diagnoses for a populated demo on a fresh device.
  * Covers the full Open / Planned / Fixed journey with relative dates so

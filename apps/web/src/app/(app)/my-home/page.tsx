@@ -17,7 +17,9 @@ import {
 import { useSession } from '@/lib/auth-client';
 import {
   SYSTEM_LABELS,
+  clearAllBriefs,
   fetchRemoteRecord,
+  isDemoAccount,
   loadHomeRecord,
   migrateLocalToRemote,
   seedSampleBriefs,
@@ -208,6 +210,22 @@ export default function MyHomePage() {
 
   const isSignedIn = !!session?.user;
   const hasAnyData = briefs.length > 0 || systems.length > 0;
+  const isDemoUser = isDemoAccount(session?.user?.email);
+
+  // Demo accounts (whitelisted in lib/home-record) get the sample
+  // diagnoses auto-loaded the first time they land on /my-home with an
+  // empty record — populated demo without a manual click. Fires once per
+  // session via a ref so we don't loop after the seed insertion.
+  const autoSeededRef = useRef(false);
+  useEffect(() => {
+    if (autoSeededRef.current) return;
+    if (sessionLoading) return;
+    if (!isDemoUser) return;
+    if (briefs.length > 0) return;
+    autoSeededRef.current = true;
+    seedSampleBriefs();
+    setBriefs(loadHomeRecord().briefs);
+  }, [isDemoUser, briefs.length, sessionLoading]);
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
@@ -271,13 +289,24 @@ export default function MyHomePage() {
             subtitle="Everything Odosan has diagnosed for your home, with severity, fair price, and next step."
             size="h2"
           />
-          <ButtonLink
-            href="/diagnose"
-            variant="ghost"
-            className="shrink-0 whitespace-nowrap"
-          >
-            Diagnose another
-          </ButtonLink>
+          <div className="flex shrink-0 items-center gap-2">
+            {isDemoUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearAllBriefs();
+                  seedSampleBriefs();
+                  setBriefs(loadHomeRecord().briefs);
+                }}
+                className="whitespace-nowrap text-[12px] text-od-muted underline-offset-2 hover:text-od-leaf hover:underline"
+              >
+                Reset demo data
+              </button>
+            )}
+            <ButtonLink href="/diagnose" variant="ghost" className="whitespace-nowrap">
+              Diagnose another
+            </ButtonLink>
+          </div>
         </div>
         <DiagnosesPanel
           briefs={briefs}
@@ -285,10 +314,6 @@ export default function MyHomePage() {
             const updated = updateBriefStatus(id, status);
             if (!updated) return;
             setBriefs((prev) => prev.map((b) => (b.id === id ? updated : b)));
-          }}
-          onSeedSamples={() => {
-            seedSampleBriefs();
-            setBriefs(loadHomeRecord().briefs);
           }}
         />
       </section>
@@ -379,30 +404,17 @@ function daysBetween(fromIso: string, toIso: string): number {
 function DiagnosesPanel({
   briefs,
   onStatusChange,
-  onSeedSamples,
 }: {
   briefs: DiagnosisBrief[];
   onStatusChange: (id: string, status: BriefStatus) => void;
-  onSeedSamples: () => void;
 }) {
   if (briefs.length === 0) {
     return (
-      <div className="mt-3 flex flex-col items-center justify-center rounded-[18px] border border-od-border bg-white/60 px-6 py-10 text-center shadow-[0_1px_2px_rgba(27,56,42,0.05)]">
-        <p className="text-[15px] font-semibold text-od-navy">No diagnoses saved yet</p>
-        <p className="mt-1.5 max-w-xs text-[13px] leading-[1.5] text-od-muted">
-          Diagnose your first home problem and it&apos;ll auto-save here.
-        </p>
-        <div className="mt-5">
-          <ButtonLink href="/diagnose">Diagnose a problem</ButtonLink>
-        </div>
-        <button
-          type="button"
-          onClick={onSeedSamples}
-          className="mt-3 text-[12px] text-od-muted underline-offset-2 transition-colors hover:text-od-leaf hover:underline"
-        >
-          Or load 3 sample diagnoses for a quick preview
-        </button>
-      </div>
+      <EmptyState
+        heading="No diagnoses saved yet"
+        body="Diagnose your first home problem and it'll auto-save here."
+        cta={{ href: '/diagnose', label: 'Diagnose a problem' }}
+      />
     );
   }
 

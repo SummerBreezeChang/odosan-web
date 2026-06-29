@@ -93,13 +93,48 @@ const SEASONAL_TASKS: SeasonalTask[] = [
 
 // ─── Tab definitions ─────────────────────────────────────────────────────────
 
-type TabId = 'systems' | 'documents' | 'seasonal';
+type TabId = 'diagnoses' | 'seasonal' | 'documents' | 'systems';
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'diagnoses', label: 'Diagnoses' },
   { id: 'seasonal', label: 'Seasonal' },
   { id: 'documents', label: 'Documents' },
   { id: 'systems', label: 'Systems' },
 ];
+
+// Used by the Diagnoses panel — diagnose briefs are stored with a category
+// string from the diagnose-page taxonomy.
+const BRIEF_CATEGORY_ICONS: Record<string, LucideIcon> = {
+  plumbing_drainage: Droplet,
+  gutters_drainage: CloudRain,
+  landscaping: Trees,
+  roofing: Home,
+  electrical: Bolt,
+  hvac: Wind,
+  pest_control: Hammer,
+  handyman: Hammer,
+  painting: Hammer,
+  other: Hammer,
+};
+
+const BRIEF_CATEGORY_LABELS: Record<string, string> = {
+  plumbing_drainage: 'Plumbing',
+  gutters_drainage: 'Gutters',
+  landscaping: 'Landscaping',
+  roofing: 'Roofing',
+  electrical: 'Electrical',
+  hvac: 'HVAC',
+  pest_control: 'Pest',
+  handyman: 'Handyman',
+  painting: 'Painting',
+  other: 'Other',
+};
+
+const SEVERITY_TONE: Record<DiagnosisBrief['severity'], 'urgent' | 'soon' | 'good'> = {
+  urgent: 'urgent',
+  soon: 'soon',
+  monitor: 'good',
+};
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
@@ -107,7 +142,7 @@ export default function MyHomePage() {
   const { data: session, isPending: sessionLoading } = useSession();
   const [systems, setSystems] = useState<SystemRecord[]>([]);
   const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('seasonal');
+  const [activeTab, setActiveTab] = useState<TabId>('diagnoses');
   const [migrationStatus, setMigrationStatus] = useState<
     'idle' | 'migrating' | 'done' | 'failed'
   >('idle');
@@ -251,6 +286,9 @@ export default function MyHomePage() {
 
       {/* ── Panels ── */}
       <div className="mt-5">
+        {activeTab === 'diagnoses' && (
+          <DiagnosesPanel briefs={briefs} />
+        )}
         {activeTab === 'systems' && (
           <SystemsPanel systems={systems} />
         )}
@@ -273,6 +311,67 @@ export default function MyHomePage() {
 }
 
 // ─── Diagnoses panel ─────────────────────────────────────────────────────────
+
+function DiagnosesPanel({ briefs }: { briefs: DiagnosisBrief[] }) {
+  if (briefs.length === 0) {
+    return (
+      <EmptyState
+        heading="No diagnoses saved yet"
+        body="Diagnose your first home problem and it'll auto-save here."
+        cta={{ href: '/diagnose', label: 'Diagnose a problem' }}
+      />
+    );
+  }
+  return (
+    <ul className="space-y-3">
+      {briefs.map((brief) => (
+        <DiagnosisCard key={brief.id} brief={brief} />
+      ))}
+    </ul>
+  );
+}
+
+function DiagnosisCard({ brief }: { brief: DiagnosisBrief }) {
+  const Icon = BRIEF_CATEGORY_ICONS[brief.category] ?? Hammer;
+  const categoryLabel = BRIEF_CATEGORY_LABELS[brief.category] ?? brief.category;
+  return (
+    <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4">
+      <div
+        aria-hidden="true"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft"
+      >
+        <Icon className="h-5 w-5 text-od-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Chip tone={SEVERITY_TONE[brief.severity]}>{brief.severity.toUpperCase()}</Chip>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-od-muted">
+            {categoryLabel}
+          </span>
+          <Chip tone={brief.diyOrPro === 'diy' ? 'leaf' : 'neutral'}>
+            {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
+          </Chip>
+          <span className="ml-auto text-[11px] text-od-subtle">
+            {new Date(brief.saved_at).toLocaleDateString()}
+          </span>
+        </div>
+        <p
+          className="mt-2 text-[15px] font-semibold leading-[1.3] text-od-navy"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {brief.issue}
+        </p>
+        <p className="mt-1 line-clamp-2 text-[13px] leading-[1.45] text-od-muted">
+          {brief.scopeOfWork}
+        </p>
+        <p className="mt-2 text-[12px] text-od-muted">
+          Fair range:{' '}
+          <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
+        </p>
+      </div>
+    </li>
+  );
+}
 
 // ─── Systems panel ────────────────────────────────────────────────────────────
 

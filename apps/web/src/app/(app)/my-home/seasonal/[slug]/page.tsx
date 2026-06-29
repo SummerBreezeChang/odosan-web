@@ -37,7 +37,21 @@ export default async function SeasonalDetailPage({
   const introParagraphs = task.intro.split('\n\n');
 
   return (
-    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
+    <div className="seasonal-detail mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
+      {/* Subtle slide-in from right on mount so navigating to the detail
+          feels like a layer pushed on top, not an abrupt page swap. Pure
+          CSS — the `back` browser nav handles the reverse without animation. */}
+      <style>{`
+        @keyframes seasonal-slide-in {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        .seasonal-detail { animation: seasonal-slide-in 280ms ease-out both; }
+        @media (prefers-reduced-motion: reduce) {
+          .seasonal-detail { animation: none; }
+        }
+      `}</style>
+
       {/* Back link */}
       <Link
         href="/my-home"

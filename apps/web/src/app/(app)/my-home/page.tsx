@@ -345,6 +345,15 @@ function daysBetween(fromIso: string, toIso: string): number {
   return Math.max(0, Math.round(ms / 86_400_000));
 }
 
+type StatusFilter = 'all' | BriefStatus;
+
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'open', label: 'Open' },
+  { id: 'planned', label: 'Planned' },
+  { id: 'fixed', label: 'Fixed' },
+];
+
 function DiagnosesPanel({
   briefs,
   onStatusChange,
@@ -352,6 +361,8 @@ function DiagnosesPanel({
   briefs: DiagnosisBrief[];
   onStatusChange: (id: string, status: BriefStatus) => void;
 }) {
+  const [filter, setFilter] = useState<StatusFilter>('all');
+
   if (briefs.length === 0) {
     return (
       <EmptyState
@@ -370,44 +381,64 @@ function DiagnosesPanel({
     { open: 0, planned: 0, fixed: 0 } as Record<BriefStatus, number>
   );
 
+  const filtered =
+    filter === 'all' ? briefs : briefs.filter((b) => briefStatus(b) === filter);
+
   return (
     <>
-      {/* Counter strip — the journey summary, at a glance */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-od-muted">
-        <StatusCount tone="urgent" count={counts.open} label="Open" />
-        <StatusCount tone="soon" count={counts.planned} label="Planned" />
-        <StatusCount tone="good" count={counts.fixed} label="Fixed" />
+      {/* Tappable filter chips — same visual language as the Seasonal /
+          Documents / Systems action tabs. Each chip shows its count so
+          the user knows what they're filtering down to without a separate
+          counter strip. */}
+      <div
+        className="mb-4 flex gap-2 overflow-x-auto pb-0.5"
+        role="tablist"
+        aria-label="Filter by status"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {STATUS_FILTERS.map((f) => {
+          const active = f.id === filter;
+          const count = f.id === 'all' ? briefs.length : counts[f.id];
+          return (
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setFilter(f.id)}
+              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+                active
+                  ? 'border-od-ink bg-od-ink text-od-bg'
+                  : 'border-od-border bg-white text-od-navy hover:border-od-ink/30 hover:bg-od-cream'
+              }`}
+            >
+              {f.label}
+              <span
+                className={`ml-1.5 ${active ? 'text-od-bg/70' : 'text-od-subtle'}`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
-      <ul className="space-y-3">
-        {briefs.map((brief) => (
-          <DiagnosisCard
-            key={brief.id}
-            brief={brief}
-            onStatusChange={(status) => onStatusChange(brief.id, status)}
-          />
-        ))}
-      </ul>
-    </>
-  );
-}
 
-function StatusCount({
-  tone,
-  count,
-  label,
-}: {
-  tone: 'urgent' | 'soon' | 'good';
-  count: number;
-  label: string;
-}) {
-  const dotColor =
-    tone === 'urgent' ? 'bg-od-red' : tone === 'soon' ? 'bg-od-orange' : 'bg-od-green';
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`h-2 w-2 rounded-full ${dotColor}`} aria-hidden="true" />
-      <span className="font-semibold text-od-navy">{count}</span>
-      <span>{label}</span>
-    </span>
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border border-od-border bg-white/60 px-6 py-8 text-center text-[13px] text-od-muted">
+          No diagnoses in this status yet.
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {filtered.map((brief) => (
+            <DiagnosisCard
+              key={brief.id}
+              brief={brief}
+              onStatusChange={(status) => onStatusChange(brief.id, status)}
+            />
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -677,42 +708,75 @@ function DocumentsPanel() {
         </p>
       )}
 
-      <ul className="grid grid-cols-3 gap-3">
-        {/* Upload tile — same overall dimensions as Systems / doc tiles
-            (aspect-square visual area + meta strip below) so the grid
-            rows align. Dashed border + tinted top keeps it visually
-            distinct as an "add" affordance. */}
-        <li>
-          <label className="flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 border-dashed border-od-primary/40 bg-white transition-colors hover:border-od-primary/60">
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-              disabled={uploading}
-            />
-            {/* Square visual */}
-            <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft/30">
-              {uploading ? null : (
-                <Upload className="h-8 w-8 text-od-primary" aria-hidden="true" />
-              )}
-            </div>
-            {/* Meta strip — mirrors Systems-tile two-line title */}
-            <div className="flex flex-1 flex-col gap-1 p-2">
-              <p
-                className="line-clamp-2 min-h-[32px] text-[12px] font-semibold leading-[1.3] text-od-primary"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {uploading ? 'Uploading…' : 'Add PDF or photo'}
-              </p>
-            </div>
-          </label>
-        </li>
+      {/* When nothing's uploaded yet, render a full-width drop zone so the
+          'add' affordance matches the visual weight of the Systems empty
+          state (rather than a 1/3 grid cell that reads as undersized). */}
+      {docs.length === 0 ? (
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-od-primary/40 bg-white px-6 py-10 text-center transition-colors hover:border-od-primary/60">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => handleFiles(e.target.files)}
+            disabled={uploading}
+          />
+          <div
+            aria-hidden="true"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-od-primary-soft text-od-primary"
+          >
+            <Upload className="h-7 w-7" />
+          </div>
+          <div>
+            <p
+              className="text-[15px] font-semibold text-od-navy"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              {uploading ? 'Uploading…' : 'Add PDF or photo'}
+            </p>
+            <p className="mt-1 text-[12px] text-od-muted">
+              JPEG, PNG, or PDF. Up to 8 MB.
+            </p>
+          </div>
+        </label>
+      ) : (
+        <ul className="grid grid-cols-3 gap-3">
+          {/* Upload tile — same overall dimensions as Systems / doc tiles
+              (aspect-square visual area + meta strip below) so the grid
+              rows align. Dashed border + tinted top keeps it visually
+              distinct as an "add" affordance. */}
+          <li>
+            <label className="flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 border-dashed border-od-primary/40 bg-white transition-colors hover:border-od-primary/60">
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+                disabled={uploading}
+              />
+              {/* Square visual */}
+              <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft/30">
+                {uploading ? null : (
+                  <Upload className="h-8 w-8 text-od-primary" aria-hidden="true" />
+                )}
+              </div>
+              {/* Meta strip — mirrors Systems-tile two-line title */}
+              <div className="flex flex-1 flex-col gap-1 p-2">
+                <p
+                  className="line-clamp-2 min-h-[32px] text-[12px] font-semibold leading-[1.3] text-od-primary"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  {uploading ? 'Uploading…' : 'Add PDF or photo'}
+                </p>
+              </div>
+            </label>
+          </li>
 
-        {/* Uploaded doc tiles */}
-        {docs.map((doc) => (
+          {/* Uploaded doc tiles */}
+          {docs.map((doc) => (
           <li
             key={doc.id}
             className="group relative overflow-hidden rounded-2xl border border-od-border bg-white"
@@ -748,8 +812,9 @@ function DocumentsPanel() {
               ✕
             </button>
           </li>
-        ))}
-      </ul>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

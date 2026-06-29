@@ -37,33 +37,38 @@ export default async function SeasonalDetailPage({
   const introParagraphs = task.intro.split('\n\n');
 
   return (
-    <div className="seasonal-detail mx-auto w-full max-w-xl px-5 pb-12 pt-4 sm:px-6">
-      {/* Slide UP from bottom on mount — reads as a sheet/modal pushed
-          over /my-home. The X close button in the top-right reinforces
-          the "this is a layer I can dismiss" mental model. Pure CSS,
-          honors prefers-reduced-motion. */}
+    <div className="seasonal-shell min-h-screen bg-od-ink/10 pb-12">
+      {/* Sheet/modal styling: a slightly translucent white card with
+          rounded top corners sits over a dimmed (10%-ink) backdrop, so
+          users immediately read it as a layer pushed over /my-home and
+          not as a fresh page swap. Slide-up animation only on the
+          sheet — the backdrop stays static. */}
       <style>{`
         @keyframes seasonal-slide-up {
           from { opacity: 0; transform: translateY(28px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .seasonal-detail { animation: seasonal-slide-up 320ms ease-out both; }
+        .seasonal-sheet { animation: seasonal-slide-up 320ms ease-out both; }
         @media (prefers-reduced-motion: reduce) {
-          .seasonal-detail { animation: none; }
+          .seasonal-sheet { animation: none; }
         }
       `}</style>
 
-      {/* Close (X) — returns to /my-home. Top-right placement so it's
-          tappable with a thumb while reading. */}
-      <div className="flex justify-end">
-        <Link
-          href="/my-home"
-          aria-label="Close"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-od-border bg-white text-od-muted transition-colors hover:bg-od-cream hover:text-od-ink"
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </Link>
-      </div>
+      <div
+        className="seasonal-sheet mx-auto w-full max-w-xl rounded-t-[28px] bg-white/85 px-5 pt-4 backdrop-blur-md shadow-[0_-12px_30px_rgba(27,56,42,0.08)] sm:px-6"
+        style={{ minHeight: 'calc(100vh - 64px)' }}
+      >
+        {/* Close (X) — returns to /my-home. Top-right placement so it's
+            tappable with a thumb while reading. */}
+        <div className="flex justify-end">
+          <Link
+            href="/my-home"
+            aria-label="Close"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-od-border bg-white text-od-muted transition-colors hover:bg-od-cream hover:text-od-ink"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </div>
 
       {/* Hero */}
       <div className="mt-5 flex items-center gap-4">
@@ -186,6 +191,7 @@ export default async function SeasonalDetailPage({
           </ButtonLink>
         </div>
       </section>
+      </div>
     </div>
   );
 }

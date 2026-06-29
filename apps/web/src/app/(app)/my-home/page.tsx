@@ -580,7 +580,7 @@ function SystemTile({ system }: { system: SystemRecord }) {
       {/* Meta */}
       <div className="flex flex-1 flex-col gap-1 p-2">
         <p
-          className="line-clamp-2 text-[12px] font-semibold leading-[1.3] text-od-navy"
+          className="line-clamp-2 min-h-[32px] text-[12px] font-semibold leading-[1.3] text-od-navy"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {SYSTEM_LABELS[system.system_type]}
@@ -817,7 +817,7 @@ function SeasonalPanel() {
                 {/* Meta */}
                 <div className="flex flex-1 flex-col gap-0.5 p-2">
                   <p
-                    className="line-clamp-2 text-[12px] font-semibold leading-[1.3] text-od-navy"
+                    className="line-clamp-2 min-h-[32px] text-[12px] font-semibold leading-[1.3] text-od-navy"
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
                     {task.title}

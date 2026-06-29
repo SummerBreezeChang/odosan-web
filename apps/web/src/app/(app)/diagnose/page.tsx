@@ -608,7 +608,7 @@ function DiagnoseInner() {
   if (step === 'result' && diagnosis) {
     const diyRecommended = diagnosis.diyOrPro === 'diy';
     return (
-      <div className="mx-auto w-full max-w-xl px-4 pt-6 pb-8 sm:px-6 sm:pt-8">
+      <div className="mx-auto w-full max-w-xl px-5 pt-6 pb-8 sm:px-6 sm:pt-8">
         <SectionHeader
           eyebrow="Diagnosis"
           title={diagnosis.issue}
@@ -1419,7 +1419,7 @@ function DiagnosingState({
   }, [steps.length]);
 
   return (
-    <div className="mx-auto flex min-h-[80vh] w-full max-w-md flex-col items-center justify-center px-4 py-10 sm:px-6">
+    <div className="mx-auto flex min-h-[80vh] w-full max-w-md flex-col items-center justify-center px-5 py-10 sm:px-6">
       {/* Hero stack: dawn glow → spinning ring → breathing logo */}
       <div className="relative flex h-32 w-32 items-center justify-center">
         <div

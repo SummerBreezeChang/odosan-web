@@ -37,7 +37,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6"
       aria-label="Primary navigation"
     >
       <div className="pointer-events-auto mx-auto flex max-w-xl items-stretch gap-1 rounded-[18px] border border-od-border bg-white/85 p-1.5 shadow-[0_1px_2px_rgba(27,56,42,0.05),0_10px_26px_rgba(27,56,42,0.08)] backdrop-blur-md">

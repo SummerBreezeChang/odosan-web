@@ -29,6 +29,7 @@ import {
   type SystemRecord,
   type SystemType,
 } from '@/lib/home-record';
+import { SEASONAL_TASKS } from '@/lib/seasonal-tasks';
 import { Card } from '@/components/brand/Card';
 import { Chip } from '@/components/brand/Chip';
 import { ButtonLink } from '@/components/brand/Button';
@@ -45,57 +46,9 @@ const SYSTEM_ICONS: Record<SystemType, LucideIcon> = {
   roof_invoice: Home,
 };
 
-type SeasonalTask = {
-  id: string;
-  title: string;
-  when: string;
-  why: string;
-  category: string;
-  icon: LucideIcon;
-};
-
-const SEASONAL_TASKS: SeasonalTask[] = [
-  {
-    id: 'gutter-clean',
-    title: 'Gutter cleaning',
-    when: 'Before fall rains',
-    why: 'Clogged gutters back water up at the foundation — the #1 cause of basement leaks.',
-    category: 'gutters_drainage',
-    icon: CloudRain,
-  },
-  {
-    id: 'hvac-filter',
-    title: 'HVAC filter swap',
-    when: 'Quarterly',
-    why: 'A clogged filter cuts efficiency ~15% and shortens the unit\'s life.',
-    category: 'hvac',
-    icon: Wind,
-  },
-  {
-    id: 'water-heater-flush',
-    title: 'Water heater flush',
-    when: 'Annual',
-    why: 'Sediment hardens at the bottom, kills capacity, and rumbles when the burner fires.',
-    category: 'plumbing_drainage',
-    icon: Droplet,
-  },
-  {
-    id: 'roof-check',
-    title: 'Roof inspection',
-    when: 'Annual',
-    why: 'Catch a slipped shingle or cracked flashing before a leak finds your ceiling.',
-    category: 'roofing',
-    icon: Home,
-  },
-  {
-    id: 'sump-pump',
-    title: 'Sump pump test',
-    when: 'Before rainy season',
-    why: 'Pour a bucket in. If it doesn\'t pump out, you find out now — not at 3 a.m.',
-    category: 'plumbing_drainage',
-    icon: Droplet,
-  },
-];
+// SEASONAL_TASKS now lives in lib/seasonal-tasks.ts — shared with the
+// /my-home/seasonal/[slug] detail pages so the card and the detail page
+// stay in sync.
 
 // ─── Tab definitions ─────────────────────────────────────────────────────────
 // Saved diagnoses live in their own section above these tabs — they are a
@@ -799,7 +752,7 @@ function SeasonalPanel() {
   return (
     <div>
       <p className="mb-3 text-[13px] leading-[1.5] text-od-muted">
-        Top 5 things first-time homeowners forget. Tap any to diagnose with a photo.
+        Top 5 things first-time homeowners forget. Tap any to see the basics, then diagnose with a photo.
       </p>
       <ul className="grid grid-cols-3 gap-3">
         {SEASONAL_TASKS.map((task) => {
@@ -807,7 +760,7 @@ function SeasonalPanel() {
           return (
             <li key={task.id}>
               <a
-                href={`/diagnose?category=${task.category}`}
+                href={`/my-home/seasonal/${task.id}`}
                 className="flex flex-col overflow-hidden rounded-2xl border border-od-border bg-white transition-colors hover:border-od-primary/40"
               >
                 {/* Visual area */}

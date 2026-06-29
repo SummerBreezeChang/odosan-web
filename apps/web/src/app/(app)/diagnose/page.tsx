@@ -157,22 +157,43 @@ const severityConfig: Record<Severity, { icon: any; color: string; label: string
 // /public/example-disposal.jpg.
 
 const DEMO_FIRST_PASS: DiagnosisResult = {
-  issue: 'Possible splash guard wear or slip-joint leak',
+  issue: 'Disposal leak — narrowing the source',
   severity: 'soon',
   recommendedCategory: 'plumbing_drainage',
   scopeOfWork:
-    'Could be the rubber splash guard at the top of the disposal, or a loose slip-joint washer underneath. The clarifying question below pins it down.',
-  fairPriceRange: '$10–40',
+    'A leak on a Badger 5 can come from four places: splash guard, sink flange, slip-joint discharge, or the motor seal. Three quick questions map to the actual fix.',
+  fairPriceRange: '$10–250',
   diyOrPro: 'diy',
   explanation:
-    "I see a Badger 5 disposal in a tight cabinet — no obvious puddle in the frame, but the geometry (disposal mounted high, slip-joint visible) is exactly where small leaks hide. One quick question will narrow it.",
+    "I see a Badger 5 disposal mounted in a tight cabinet — no obvious puddle in the frame, but the geometry is exactly where small leaks hide. Three quick questions will pin down whether it's a $10 splash guard, a $20 sink-flange reseat, or a new disposal.",
   confidence: 68,
   clarifyingQuestions: [
     {
-      id: 'when_started',
-      question: 'How recently did you notice this?',
+      id: 'leak_location',
+      question: 'Where does the water actually show up?',
       type: 'select',
-      options: ['Today', 'This week', 'A few weeks ago', 'A while back'],
+      options: [
+        'Around the top, near the sink drain',
+        'Underneath the disposal body',
+        'At the side, near the dishwasher hose',
+        "Can't tell — too tight in there",
+      ],
+    },
+    {
+      id: 'leak_timing',
+      question: 'When does it leak?',
+      type: 'select',
+      options: [
+        'Only when the disposal is running',
+        'Only when water is running in the sink',
+        'All the time, even when nothing is on',
+        'Not sure',
+      ],
+    },
+    {
+      id: 'disposal_loose',
+      question: 'Does the disposal wiggle if you push up on it from below?',
+      type: 'yesno',
     },
   ],
   diyShoppingQuery: 'garbage disposal splash guard rubber boot',

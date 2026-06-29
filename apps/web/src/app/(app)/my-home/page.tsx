@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Bolt,
   Camera,
+  ChevronRight,
   CloudRain,
   Droplet,
   FileText,
@@ -488,49 +490,62 @@ function DiagnosisCard({
   const dateTone = status === 'fixed' ? 'text-od-green' : 'text-od-subtle';
 
   return (
-    <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4">
-      <div
-        aria-hidden="true"
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft"
+    <li className="rounded-2xl border border-od-border bg-white">
+      {/* Clickable area — opens detail subpage. Status toggle below is
+          OUTSIDE this Link so taps on it don't navigate. */}
+      <Link
+        href={`/my-home/diagnoses/${brief.id}`}
+        className="flex gap-3 p-4 transition-colors hover:bg-od-cream/40"
       >
-        <Icon className="h-5 w-5 text-od-primary" />
-      </div>
-      <div className="min-w-0 flex-1">
-        {/* Title row — issue left, single adaptive date right */}
-        <div className="flex items-start justify-between gap-2">
-          <p
-            className="min-w-0 flex-1 text-[15px] font-semibold leading-[1.3] text-od-navy"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {brief.issue}
-          </p>
-          <span className={`shrink-0 whitespace-nowrap text-[11px] font-medium ${dateTone}`}>
-            {dateLabel}
-          </span>
-        </div>
-
-        {/* Severity chip + category — one small label row, no wrap clutter */}
-        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-od-muted">
-          <Chip tone={SEVERITY_TONE[brief.severity]}>{brief.severity}</Chip>
-          <span>{categoryLabel}</span>
-        </p>
-
-        <p className="mt-2 line-clamp-2 text-[13px] leading-[1.45] text-od-muted">
-          {brief.scopeOfWork}
-        </p>
-
-        {/* Fair-price + DIY/Pro indicator folded into one line */}
-        <p className="mt-2 text-[12px] text-od-muted">
-          Fair range:{' '}
-          <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
-          <span className="ml-2 text-od-subtle">
-            · {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
-          </span>
-        </p>
-
-        {/* Status toggle — three segmented buttons */}
         <div
-          className="mt-3 inline-flex overflow-hidden rounded-full border border-od-border bg-white text-[12px] font-semibold"
+          aria-hidden="true"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft"
+        >
+          <Icon className="h-5 w-5 text-od-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          {/* Title row — issue left, single adaptive date right */}
+          <div className="flex items-start justify-between gap-2">
+            <p
+              className="min-w-0 flex-1 text-[15px] font-semibold leading-[1.3] text-od-navy"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              {brief.issue}
+            </p>
+            <span className={`shrink-0 whitespace-nowrap text-[11px] font-medium ${dateTone}`}>
+              {dateLabel}
+            </span>
+          </div>
+
+          {/* Severity chip + category — one small label row, no wrap clutter */}
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-od-muted">
+            <Chip tone={SEVERITY_TONE[brief.severity]}>{brief.severity}</Chip>
+            <span>{categoryLabel}</span>
+          </p>
+
+          <p className="mt-2 line-clamp-2 text-[13px] leading-[1.45] text-od-muted">
+            {brief.scopeOfWork}
+          </p>
+
+          {/* Fair-price + DIY/Pro indicator folded into one line */}
+          <p className="mt-2 text-[12px] text-od-muted">
+            Fair range:{' '}
+            <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
+            <span className="ml-2 text-od-subtle">
+              · {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
+            </span>
+          </p>
+        </div>
+        <ChevronRight
+          className="mt-1 h-4 w-4 shrink-0 text-od-subtle"
+          aria-hidden="true"
+        />
+      </Link>
+
+      {/* Status toggle — outside the Link so it doesn't navigate */}
+      <div className="border-t border-od-border/60 px-4 py-2.5">
+        <div
+          className="inline-flex overflow-hidden rounded-full border border-od-border bg-white text-[12px] font-semibold"
           role="group"
           aria-label="Update status"
         >

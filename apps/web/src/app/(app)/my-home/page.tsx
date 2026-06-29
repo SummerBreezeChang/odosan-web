@@ -678,9 +678,12 @@ function DocumentsPanel() {
       )}
 
       <ul className="grid grid-cols-3 gap-3">
-        {/* Upload tile — always first */}
+        {/* Upload tile — same overall dimensions as Systems / doc tiles
+            (aspect-square visual area + meta strip below) so the grid
+            rows align. Dashed border + tinted top keeps it visually
+            distinct as an "add" affordance. */}
         <li>
-          <label className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-od-primary/40 bg-od-primary-soft/30 px-2 text-center transition-colors hover:bg-od-primary-soft/50">
+          <label className="flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 border-dashed border-od-primary/40 bg-white transition-colors hover:border-od-primary/60">
             <input
               ref={inputRef}
               type="file"
@@ -690,16 +693,21 @@ function DocumentsPanel() {
               onChange={(e) => handleFiles(e.target.files)}
               disabled={uploading}
             />
-            {uploading ? (
-              <span className="text-[11px] font-semibold text-od-primary">Uploading…</span>
-            ) : (
-              <>
-                <Upload className="h-7 w-7 text-od-primary" aria-hidden="true" />
-                <span className="mt-1.5 text-[11px] font-semibold leading-tight text-od-primary">
-                  Add PDF or photo
-                </span>
-              </>
-            )}
+            {/* Square visual */}
+            <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft/30">
+              {uploading ? null : (
+                <Upload className="h-8 w-8 text-od-primary" aria-hidden="true" />
+              )}
+            </div>
+            {/* Meta strip — mirrors Systems-tile two-line title */}
+            <div className="flex flex-1 flex-col gap-1 p-2">
+              <p
+                className="line-clamp-2 min-h-[32px] text-[12px] font-semibold leading-[1.3] text-od-primary"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {uploading ? 'Uploading…' : 'Add PDF or photo'}
+              </p>
+            </div>
           </label>
         </li>
 

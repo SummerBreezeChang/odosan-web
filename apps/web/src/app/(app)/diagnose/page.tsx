@@ -8,6 +8,7 @@ import {
   ChevronDown,
   AlertCircle,
   CheckCircle2,
+  Check,
   Clock,
   Wrench,
   Droplet,
@@ -579,38 +580,18 @@ function DiagnoseInner() {
   }
 
   if (step === 'diagnosing' || step === 'refining') {
-    const isRefining = step === 'refining';
-    return (
-      <div className="mx-auto flex w-full max-w-md min-h-[60vh] items-center justify-center px-4 sm:px-6">
-        <div className="text-center">
-          <div
-            className="mx-auto mb-6 h-14 w-14 rounded-full border-4 border-od-border border-t-od-ink"
-            style={{ animation: 'spin 1s linear infinite' }}
-            aria-hidden="true"
-          />
-          <h2
-            className="text-[24px] font-semibold leading-[1.2] text-od-ink"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {isRefining ? 'Refining with your answers…' : 'Diagnosing your issue…'}
-          </h2>
-          <p className="mt-2 text-[14px] text-od-muted">
-            {isRefining
-              ? 'A moment while we tighten the estimate range.'
-              : 'This should take just a moment.'}
-          </p>
-        </div>
-        <style jsx global>{`
-          @keyframes spin {
-            from {
-              transform: rotate(0deg);
-            }
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}</style>
-      </div>
+    return step === 'refining' ? (
+      <DiagnosingState
+        heading="Refining with your answers…"
+        subline="Tightening things up so the estimate — and the parts — are spot on."
+        steps={REFINING_STEPS}
+      />
+    ) : (
+      <DiagnosingState
+        heading="Diagnosing your home…"
+        subline="A careful read takes a moment — we'd rather be right than fast."
+        steps={DIAGNOSING_STEPS}
+      />
     );
   }
 
@@ -1361,6 +1342,199 @@ function FixItYourselfTile({
       <p className="mt-4 text-[11px] text-od-subtle">
         As an Amazon Associate, Odosan earns from qualifying purchases.
       </p>
+    </div>
+  );
+}
+
+// ─── DiagnosingState (narrated wait) ────────────────────────────────────
+// Branded loading screen for the 'diagnosing' and 'refining' steps.
+// Breathing Odosan logo + dawn glow + spinning ring, and a checklist of
+// status steps that reveal one by one. After the last step, holds briefly
+// and loops — the real API call may still be running and the parent
+// component navigates away when it returns.
+
+const DIAGNOSING_STEPS = [
+  'Reading your photo',
+  'Checking the make & model',
+  'Comparing common East Bay issues',
+  'Estimating a fair local price',
+  'Writing your diagnosis',
+] as const;
+
+const REFINING_STEPS = [
+  'Factoring in your answers',
+  'Tightening the price range',
+  "Finding the exact parts you'll need",
+  'Double-checking the recommendation',
+] as const;
+
+function DiagnosingState({
+  heading,
+  subline,
+  steps,
+}: {
+  heading: string;
+  subline: string;
+  steps: readonly string[];
+}) {
+  const [completed, setCompleted] = useState(0);
+
+  useEffect(() => {
+    // Hide the global site footer while the loader owns the viewport.
+    document.body.classList.add('odosan-loading');
+
+    // Respect prefers-reduced-motion: skip the sequenced reveal, show all
+    // steps statically. The CSS keyframes are also disabled via media query.
+    const reduce =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduce) {
+      setCompleted(steps.length);
+      return () => {
+        document.body.classList.remove('odosan-loading');
+      };
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+    let i = 0;
+
+    function tick() {
+      if (cancelled) return;
+      i += 1;
+      if (i > steps.length) {
+        // Hold the fully-checked list for a beat, then loop.
+        timeoutId = setTimeout(() => {
+          if (cancelled) return;
+          i = 0;
+          setCompleted(0);
+          timeoutId = setTimeout(tick, 600);
+        }, 1400);
+      } else {
+        setCompleted(i);
+        timeoutId = setTimeout(tick, 900);
+      }
+    }
+
+    timeoutId = setTimeout(tick, 600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      document.body.classList.remove('odosan-loading');
+    };
+  }, [steps.length]);
+
+  return (
+    <div className="mx-auto flex min-h-[80vh] w-full max-w-md flex-col items-center justify-center px-4 py-10 sm:px-6">
+      {/* Hero stack: dawn glow → spinning ring → breathing logo */}
+      <div className="relative flex h-32 w-32 items-center justify-center">
+        <div
+          className="diag-dawn absolute -inset-8 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(246,217,168,0.7) 0%, rgba(246,217,168,0) 65%)',
+          }}
+          aria-hidden="true"
+        />
+        <svg
+          className="diag-spin absolute inset-0 h-full w-full"
+          viewBox="0 0 100 100"
+          aria-hidden="true"
+        >
+          <circle
+            cx="50"
+            cy="50"
+            r="48"
+            fill="none"
+            stroke="rgba(27,56,42,0.08)"
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="48"
+            fill="none"
+            stroke="#2C6E49"
+            strokeWidth="1.5"
+            strokeDasharray="50 250"
+            strokeLinecap="round"
+          />
+        </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icon-192.png"
+          alt=""
+          aria-hidden="true"
+          className="diag-breathe relative h-20 w-20 rounded-2xl"
+        />
+      </div>
+
+      <h2
+        className="mt-8 text-center text-[26px] font-semibold leading-[1.2] text-od-ink"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {heading}
+      </h2>
+      <p className="mt-2 max-w-sm text-center text-[14px] leading-[1.5] text-od-muted">
+        {subline}
+      </p>
+
+      <ul className="mt-8 w-full max-w-xs space-y-3" aria-live="polite">
+        {steps.map((step, i) => {
+          const isDone = i < completed;
+          return (
+            <li
+              key={step}
+              className="flex items-center gap-3 transition-opacity duration-500"
+              style={{ opacity: isDone ? 1 : 0.4 }}
+            >
+              <span
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
+                  isDone ? 'bg-od-green' : 'bg-od-border'
+                }`}
+              >
+                {isDone && (
+                  <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} aria-hidden="true" />
+                )}
+              </span>
+              <span className={`text-[15px] ${isDone ? 'text-od-ink' : 'text-od-muted'}`}>
+                {step}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <style jsx global>{`
+        @keyframes diag-breathe {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.06); }
+        }
+        @keyframes diag-dawn {
+          0%, 100% { opacity: 0.75; transform: scale(1); }
+          50% { opacity: 0.35; transform: scale(1.12); }
+        }
+        @keyframes diag-spin {
+          to { transform: rotate(360deg); }
+        }
+        .diag-breathe { animation: diag-breathe 2.6s ease-in-out infinite; }
+        .diag-dawn { animation: diag-dawn 3.6s ease-in-out infinite; }
+        .diag-spin {
+          animation: diag-spin 2.4s linear infinite;
+          transform-origin: center;
+        }
+        body.odosan-loading footer { display: none !important; }
+        @media (prefers-reduced-motion: reduce) {
+          .diag-breathe,
+          .diag-dawn,
+          .diag-spin {
+            animation: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

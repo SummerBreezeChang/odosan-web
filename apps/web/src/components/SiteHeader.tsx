@@ -59,8 +59,8 @@ export function SiteHeader() {
                 aria-label="Account menu"
                 className="flex items-center gap-2 rounded-full bg-od-primary-soft px-1.5 py-1 text-sm font-semibold text-od-navy hover:bg-od-primary-soft/80"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-od-navy text-[10px] font-semibold text-white">
-                  {initials(user.name || user.email || '?')}
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[16px] leading-none">
+                  <span aria-hidden="true">{pickEmojiAvatar(user.id || user.email || 'guest')}</span>
                 </span>
                 <span className="hidden max-w-[120px] truncate pr-1 sm:inline">
                   {user.name?.split(' ')[0] || user.email}
@@ -117,9 +117,16 @@ export function SiteHeader() {
   );
 }
 
-function initials(s: string): string {
-  const parts = s.trim().split(/\s+/);
-  const a = parts[0]?.[0] ?? '';
-  const b = parts[1]?.[0] ?? '';
-  return (a + b).toUpperCase().slice(0, 2) || '?';
+// Six lightweight emoji avatars rotated deterministically per user. Each
+// homeowner always sees the same emoji for themselves (and for anyone
+// else they encounter), so it functions like a stable identicon.
+const EMOJI_AVATARS = ['😎', '🤠', '🥸', '🧑‍🔧', '🦊', '🐻'] as const;
+
+function pickEmojiAvatar(seed: string): string {
+  // Plain DJB2-style hash — fast, no crypto needed for a non-secret pick.
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
+  }
+  return EMOJI_AVATARS[h % EMOJI_AVATARS.length];
 }

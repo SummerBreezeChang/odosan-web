@@ -9,6 +9,7 @@
 import {
   CloudRain,
   Droplet,
+  Flame,
   Home,
   Wind,
   type LucideIcon,
@@ -187,6 +188,38 @@ export const SEASONAL_TASKS: SeasonalTask[] = [
     ],
     diagnoseHint:
       'Photo of the sump basin from above, ideally with the lid off, showing the pump and any visible water or rust.',
+  },
+  {
+    id: 'fire-season-prep',
+    title: 'Fire season prep',
+    when: 'Before summer',
+    shortWhy:
+      '30 ft of defensible space around the house is the single biggest survivability factor when embers fly.',
+    category: 'landscaping',
+    icon: Flame,
+    intro:
+      "If you're in the East Bay hills — Berkeley above Grizzly Peak, Oakland above Skyline, Orinda, Lafayette, Moraga — your fire season risk is real and rising. Cal Fire and your insurer both think about your property in zones: 0–5 ft (ember-resistant), 5–30 ft (lean and clean), 30–100 ft (reduced fuel).\n\nGoing through the zones once before summer — think May, before the grass goes gold — cuts ember-ignition risk dramatically and keeps your insurance premium from spiking. The work isn't glamorous (clearing dead leaves out of corners, limbing low branches, raking pine needles off the roof) but it's what actually saves houses.",
+    toolsNeeded: [
+      'Hand pruner + loppers for low branches',
+      'Rake or leaf blower for needles and dry leaves',
+      'Stiff broom for the roof and gutter edges',
+      'Heavy-duty contractor bags — more than you think',
+      'Long sleeves, gloves, and eye protection',
+    ],
+    basics: [
+      'Clear every dead leaf, needle, and dry plant within 5 ft of the house — this is Zone 0, ember-ignition territory.',
+      'Limb up trees so the lowest branches are 6+ ft off the ground and 10+ ft from the chimney.',
+      'Rake leaves and needles out of gutters, roof valleys, and any corner where debris piles against the siding.',
+      'Move anything flammable — woodpile, propane tank, summer-storage patio cushions — at least 30 ft from the house.',
+    ],
+    watchFor: [
+      'A tree leaning over the roof line — schedule an arborist before red-flag season starts, not after.',
+      'Wood chips or bark mulch up against the foundation — replace with stone or gravel within 5 ft of the house.',
+      'Ivy or wisteria climbing the siding — pull it; it’s a literal ember ladder.',
+      'A wood fence butting into the house — the fence is the easiest ember path; consider a 5 ft non-combustible break at the join.',
+    ],
+    diagnoseHint:
+      'Photo of the area you’re worried about — a tree close to the roof, a dry shrub against the siding, a pile of needles in a corner. Odosan flags the specific defensible-space rule it crosses.',
   },
 ];
 

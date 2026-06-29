@@ -199,6 +199,10 @@ export default function MyHomePage() {
         </div>
       )}
 
+      <SeasonalCard />
+
+      <HomeDocumentsCard />
+
       <section className="mt-8">
         <h2 className="text-lg font-bold text-od-navy">Saved diagnoses</h2>
         {briefs.length === 0 ? (
@@ -347,5 +351,284 @@ function SystemCard({ system }: { system: SystemRecord }) {
         )}
       </div>
     </li>
+  );
+}
+
+// ─── Seasonal maintenance card ──────────────────────────────────────────
+// Static top-5 list. Each item deep-links to /diagnose with category
+// pre-filled so a tap → photo → AI plan flow is one tap away.
+
+type SeasonalTask = {
+  id: string;
+  title: string;
+  when: string;
+  why: string;
+  category: string;
+  icon: LucideIcon;
+};
+
+const SEASONAL_TASKS: SeasonalTask[] = [
+  {
+    id: 'gutter-clean',
+    title: 'Gutter cleaning',
+    when: 'Before fall rains',
+    why: 'Clogged gutters back water up at the foundation — the #1 cause of basement leaks.',
+    category: 'gutters_drainage',
+    icon: CloudRain,
+  },
+  {
+    id: 'hvac-filter',
+    title: 'HVAC filter swap',
+    when: 'Quarterly · before heating season',
+    why: 'A clogged filter cuts efficiency ~15% and shortens the unit’s life.',
+    category: 'hvac',
+    icon: Wind,
+  },
+  {
+    id: 'water-heater-flush',
+    title: 'Water heater flush',
+    when: 'Annual',
+    why: 'Sediment hardens at the bottom, kills capacity, and rumbles when the burner fires.',
+    category: 'plumbing_drainage',
+    icon: Droplet,
+  },
+  {
+    id: 'roof-check',
+    title: 'Roof inspection',
+    when: 'Annual · before rainy season',
+    why: 'Catch a slipped shingle or cracked flashing before a leak finds your ceiling.',
+    category: 'roofing',
+    icon: Home,
+  },
+  {
+    id: 'sump-pump',
+    title: 'Sump pump test',
+    when: 'Before rainy season',
+    why: 'Pour a bucket in. If it doesn’t pump out, you find out now — not at 3 a.m.',
+    category: 'plumbing_drainage',
+    icon: Droplet,
+  },
+];
+
+function SeasonalCard() {
+  return (
+    <section className="mt-8">
+      <h2 className="text-lg font-bold text-od-navy">Seasonal maintenance</h2>
+      <p className="mt-1 text-sm text-od-muted">
+        Top 5 things first-time homeowners forget. Tap any to diagnose with a photo.
+      </p>
+      <ul className="mt-3 space-y-3">
+        {SEASONAL_TASKS.map((task) => {
+          const Icon = task.icon;
+          return (
+            <li
+              key={task.id}
+              className="flex gap-3 rounded-2xl border border-od-border bg-white/60 p-4 shadow-[0_1px_2px_rgba(27,56,42,0.05)]"
+            >
+              <div
+                aria-hidden
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-base font-bold text-od-navy">{task.title}</p>
+                  <span className="text-xs text-od-subtle">{task.when}</span>
+                </div>
+                <p className="mt-1 text-sm text-od-muted">{task.why}</p>
+                <a
+                  href={`/diagnose?category=${task.category}`}
+                  className="mt-2 inline-flex items-center text-sm font-semibold text-od-primary hover:text-od-leaf"
+                >
+                  Diagnose with a photo →
+                </a>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// ─── Home documents (photo upload) ──────────────────────────────────────
+// Uploads to S3 via /api/home-documents. Thumbnail is generated client-side
+// (resized data URL) and stored in localStorage alongside the S3 key, so
+// thumbs survive reload even though the S3 bucket is private.
+
+type HomeDocument = {
+  id: string;
+  key: string;
+  bucket: string;
+  filename: string;
+  contentType: string;
+  thumbnail: string; // resized data URL, ~256px
+  uploadedAt: string;
+};
+
+const DOCUMENTS_STORAGE_KEY = 'odosan:home-documents';
+
+function loadDocuments(): HomeDocument[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDocuments(docs: HomeDocument[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(DOCUMENTS_STORAGE_KEY, JSON.stringify(docs));
+  } catch {}
+}
+
+async function generateThumbnail(file: File, maxDim = 256): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    img.onload = () => {
+      const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function HomeDocumentsCard() {
+  const [docs, setDocs] = useState<HomeDocument[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDocs(loadDocuments());
+  }, []);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const newDocs: HomeDocument[] = [];
+      for (const file of Array.from(files)) {
+        // Only handle images for now — disclosure PDFs are a future pass.
+        if (!file.type.startsWith('image/')) {
+          continue;
+        }
+        const thumbnail = await generateThumbnail(file);
+        const formData = new FormData();
+        formData.append('photo', file);
+        const res = await fetch('/api/home-documents', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text.slice(0, 200) || `Upload failed (${res.status})`);
+        }
+        const data = (await res.json()) as { key: string; bucket: string };
+        newDocs.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          key: data.key,
+          bucket: data.bucket,
+          filename: file.name,
+          contentType: file.type,
+          thumbnail,
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+      const next = [...newDocs, ...docs];
+      setDocs(next);
+      saveDocuments(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleRemove(id: string) {
+    const next = docs.filter((d) => d.id !== id);
+    setDocs(next);
+    saveDocuments(next);
+  }
+
+  return (
+    <section className="mt-8">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-lg font-bold text-od-navy">Home documents</h2>
+        <span className="text-xs text-od-subtle">Stored privately to your home</span>
+      </div>
+      <p className="mt-1 text-sm text-od-muted">
+        Upload water heater photos, panel labels, receipts — anything you want your home to
+        remember.
+      </p>
+
+      <div className="mt-3 rounded-2xl border border-dashed border-od-primary/40 bg-od-primary-soft/40 p-4 text-center">
+        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90">
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => handleFiles(e.target.files)}
+            disabled={uploading}
+          />
+          {uploading ? 'Uploading…' : 'Upload photo'}
+        </label>
+        <p className="mt-2 text-xs text-od-muted">
+          JPEG/PNG. Stored to Amazon S3. Thumbnail kept on this device.
+        </p>
+        {error && (
+          <p className="mt-2 rounded-md bg-od-red-soft px-2 py-1 text-xs font-semibold text-od-red">
+            {error}
+          </p>
+        )}
+      </div>
+
+      {docs.length > 0 && (
+        <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {docs.map((doc) => (
+            <li
+              key={doc.id}
+              className="group relative overflow-hidden rounded-xl border border-od-border bg-white"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={doc.thumbnail}
+                alt={doc.filename}
+                className="aspect-square w-full object-cover"
+              />
+              <div className="px-2 py-1.5">
+                <p className="line-clamp-1 text-[11px] font-medium text-od-navy">
+                  {doc.filename}
+                </p>
+                <p className="text-[10px] text-od-subtle">
+                  {new Date(doc.uploadedAt).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(doc.id)}
+                aria-label={`Remove ${doc.filename}`}
+                className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-od-red opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

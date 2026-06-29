@@ -1109,6 +1109,31 @@ function ensureAffiliateTag(url: string | null | undefined): string | null {
   }
 }
 
+// Category → background + foreground hex (no #) for the placeholder
+// thumbnails. Tuned to the cream/forest brand so they sit on the clay
+// tile without fighting it.
+const CURATED_THUMB_COLORS: Record<string, { bg: string; fg: string }> = {
+  water_heater: { bg: 'DCE9DD', fg: '1B4332' },
+  hvac: { bg: 'F6E6CC', fg: '8A5A1B' },
+  plumbing: { bg: 'DCE9DD', fg: '2F5A3A' },
+  electrical: { bg: 'F6E6CC', fg: '8A5A1B' },
+  roofing: { bg: 'F4EEE6', fg: '2C6E49' },
+  general: { bg: 'F4EEE6', fg: '2C6E49' },
+};
+
+function buildCuratedThumbnailUrl(product: CuratedProduct): string {
+  const colors = CURATED_THUMB_COLORS[product.category] ?? CURATED_THUMB_COLORS.general;
+  // Strip parens, take first 3 meaningful words, encode for URL.
+  const label = product.title
+    .replace(/\(.*?\)/g, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .join(' ');
+  const text = encodeURIComponent(label);
+  return `https://placehold.co/200x200/${colors.bg}/${colors.fg}/png?text=${text}&font=playfair`;
+}
+
 function ProductImage({ image, alt }: { image: string | null; alt: string }) {
   if (!image) {
     return (
@@ -1190,6 +1215,7 @@ function CuratedProductCard({
   topPick: boolean;
 }) {
   const href = ensureAffiliateTag(product.url ?? fallbackSearchUrl) ?? '#';
+  const thumb = buildCuratedThumbnailUrl(product);
   return (
     <a
       href={href}
@@ -1197,7 +1223,7 @@ function CuratedProductCard({
       rel="sponsored nofollow noopener"
       className="flex items-center gap-3 rounded-[14px] bg-white/70 p-3 transition-shadow hover:shadow-[0_4px_12px_rgba(27,56,42,0.06)]"
     >
-      <ProductImage image={null} alt={product.title} />
+      <ProductImage image={thumb} alt={product.title} />
       <div className="min-w-0 flex-1">
         {topPick && (
           <span className="mb-1.5 inline-block rounded-full bg-od-ink px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">

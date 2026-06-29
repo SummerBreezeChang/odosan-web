@@ -149,8 +149,35 @@ const severityConfig: Record<Severity, { icon: any; color: string; label: string
   monitor: { icon: CheckCircle2, color: 'text-gray-600', label: 'Monitor' },
 };
 
-// Preset diagnosis used for the demo short-circuit. Matches the Badger 5
-// garbage disposal in /public/example-disposal.jpg.
+// ─── Demo presets ───────────────────────────────────────────────────────
+// Two-stage preset so the recording walks the full "AI doesn't bluff"
+// story: first-pass returns with a clarifying question and 68% confidence;
+// the user picks an answer; the refining stage returns the tightened
+// final result at 88%. Matches the Badger 5 garbage disposal at
+// /public/example-disposal.jpg.
+
+const DEMO_FIRST_PASS: DiagnosisResult = {
+  issue: 'Possible splash guard wear or slip-joint leak',
+  severity: 'soon',
+  recommendedCategory: 'plumbing_drainage',
+  scopeOfWork:
+    'Could be the rubber splash guard at the top of the disposal, or a loose slip-joint washer underneath. The clarifying question below pins it down.',
+  fairPriceRange: '$10–40',
+  diyOrPro: 'diy',
+  explanation:
+    "I see a Badger 5 disposal in a tight cabinet — no obvious puddle in the frame, but the geometry (disposal mounted high, slip-joint visible) is exactly where small leaks hide. One quick question will narrow it.",
+  confidence: 68,
+  clarifyingQuestions: [
+    {
+      id: 'when_started',
+      question: 'How recently did you notice this?',
+      type: 'select',
+      options: ['Today', 'This week', 'A few weeks ago', 'A while back'],
+    },
+  ],
+  diyShoppingQuery: 'garbage disposal splash guard rubber boot',
+};
+
 const DEMO_DIAGNOSIS: DiagnosisResult = {
   issue: 'Splash guard worn — replace the rubber boot',
   severity: 'soon',
@@ -366,22 +393,24 @@ function DiagnoseInner() {
     setIsSubmitting(true);
     setStep('diagnosing');
 
-    // Demo short-circuit: when the demo account submits the pre-loaded
-    // example photo (Badger 5 garbage disposal), skip the Gemini call and
-    // return a preset diagnosis after a controlled ~3.5s narrated-wait
-    // beat. Keeps the recording smooth — no real-time AI latency to trim
-    // out of the demo video. Real providers + Amazon search still fire so
-    // the rest of the demo is authentic. Replace the example photo with
-    // your own and the real AI flow runs as usual.
+    // Demo short-circuit — when the demo account submits the pre-loaded
+    // example photo, run a two-stage preset so the recording walks the
+    // full story: first pass returns with 68% confidence + one
+    // clarifying question, user picks an answer, then handleRefine
+    // (also short-circuited) returns the tightened final at 88%.
+    // No real Gemini latency to edit out of the video.
     const isDemoShortCircuit =
       isDemoAccount(session?.user?.email) && photoIsExample;
     if (isDemoShortCircuit) {
       try {
         await new Promise((resolve) => setTimeout(resolve, 3500));
-        setDiagnosis(DEMO_DIAGNOSIS);
-        await loadProvidersFor(DEMO_DIAGNOSIS.recommendedCategory);
-        setStep('result');
-        void fetchShoppingForBrief(DEMO_DIAGNOSIS);
+        setFirstPass(DEMO_FIRST_PASS);
+        const initial: Record<string, string> = {};
+        for (const q of DEMO_FIRST_PASS.clarifyingQuestions ?? []) {
+          initial[q.id] = '';
+        }
+        setAnswers(initial);
+        setStep('clarify');
       } finally {
         setIsSubmitting(false);
       }
@@ -452,6 +481,23 @@ function DiagnoseInner() {
     if (!firstPass) return;
     setIsSubmitting(true);
     setStep('refining');
+
+    // Demo short-circuit for the refining step too — skip the
+    // /api/diagnose-refine call and return the tightened final
+    // result after a 2.5s narrated-wait beat.
+    if (isDemoAccount(session?.user?.email) && photoIsExample) {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        setDiagnosis(DEMO_DIAGNOSIS);
+        await loadProvidersFor(DEMO_DIAGNOSIS.recommendedCategory);
+        setStep('result');
+        void fetchShoppingForBrief(DEMO_DIAGNOSIS);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('category', selectedCategory);

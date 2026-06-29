@@ -233,6 +233,18 @@ function DiagnoseInner() {
     }
   }
 
+  // Auto-save the brief as soon as the diagnosis result is on screen so it
+  // always lands in My home even if the user immediately taps "View matched
+  // providers" or "Find on Amazon" without explicitly clicking Save. The
+  // SaveBriefBanner downstream switches to its "Saved ✓" confirmation state
+  // on the next render. Re-running a diagnosis (handleStartOver) clears
+  // savedBriefId, so the next result auto-saves freshly.
+  useEffect(() => {
+    if (step !== 'result' || !diagnosis || savedBriefId || savingBrief) return;
+    handleSaveBrief();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, diagnosis, savedBriefId]);
+
   const stripExifAndResize = async (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       if (typeof window === 'undefined' || typeof document === 'undefined') {

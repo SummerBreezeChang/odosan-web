@@ -178,6 +178,37 @@ function DiagnoseInner() {
   const [shoppingLoading, setShoppingLoading] = useState(false);
   const [savedBriefId, setSavedBriefId] = useState<string | null>(null);
   const [savingBrief, setSavingBrief] = useState(false);
+  const [photoIsExample, setPhotoIsExample] = useState(false);
+
+  // Pre-load a sample photo (a Badger 5 garbage disposal under a sink) so
+  // the intake screen always shows a representative image — demo flows can
+  // submit it as-is, real users replace via the ✕ → upload affordance.
+  // The example is treated as a real photoFile; tagged with photoIsExample
+  // only so we can render the corner badge.
+  useEffect(() => {
+    if (photoFile) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/example-disposal.jpg');
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const file = new File([blob], 'example-disposal.jpg', {
+          type: blob.type || 'image/jpeg',
+        });
+        if (cancelled) return;
+        setPhotoFile(file);
+        setPhotoPreview(URL.createObjectURL(file));
+        setPhotoIsExample(true);
+      } catch {
+        // Silently fall through to the empty dropzone — user can still upload.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pre-fill from URL params when arriving via /my-home's per-trade CTAs.
   // Only fires once and only if the params match our known options, so users
@@ -306,6 +337,7 @@ function DiagnoseInner() {
       const strippedFile = new File([strippedBlob], file.name, { type: 'image/jpeg' });
       setPhotoFile(strippedFile);
       setPhotoPreview(URL.createObjectURL(strippedFile));
+      setPhotoIsExample(false);
     } catch (error) {
       console.error('Error processing image:', error);
     }
@@ -832,11 +864,17 @@ function DiagnoseInner() {
                 alt="Preview"
                 className="h-56 w-full rounded-[18px] border border-od-border object-cover"
               />
+              {photoIsExample && (
+                <span className="absolute left-2 top-2 rounded-full bg-od-cream/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-od-navy shadow-sm">
+                  Example · tap ✕ to use your own
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   setPhotoFile(null);
                   setPhotoPreview('');
+                  setPhotoIsExample(false);
                 }}
                 className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-od-border bg-white text-[13px] shadow-sm hover:bg-od-cream"
                 aria-label="Remove photo"
@@ -925,12 +963,12 @@ function DiagnoseInner() {
 
         <Button
           onClick={handleDiagnose}
-          disabled={!selectedCategory || !neighborhood || isSubmitting}
+          disabled={!photoFile || !selectedCategory || !neighborhood || isSubmitting}
           loading={isSubmitting}
           size="lg"
           className="w-full justify-center"
         >
-          {isSubmitting ? 'Diagnosing…' : 'Get my diagnosis'}
+          {isSubmitting ? 'Diagnosing…' : !photoFile ? 'Add a photo to continue' : 'Get my diagnosis'}
         </Button>
         <p className="text-center text-[12px] text-od-subtle">
           Odosan is upfront when it&apos;s unsure — and will ask quick questions if it needs to.

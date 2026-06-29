@@ -1,17 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Bolt,
-  Bug,
+  Camera,
   CloudRain,
   Droplet,
   Hammer,
   Home,
-  Paintbrush,
   Trees,
   Wind,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import { useSession } from '@/lib/auth-client';
@@ -26,34 +24,13 @@ import {
 } from '@/lib/home-record';
 import { Card } from '@/components/brand/Card';
 import { SectionHeader } from '@/components/brand/SectionHeader';
-import { Chip, severityTone } from '@/components/brand/Chip';
+import { Chip } from '@/components/brand/Chip';
 import { ButtonLink } from '@/components/brand/Button';
 import { EmptyState } from '@/components/brand/EmptyState';
 import { InfoBanner } from '@/components/brand/InfoBanner';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  plumbing_drainage: 'Plumbing',
-  gutters_drainage: 'Gutters',
-  landscaping: 'Landscaping',
-  roofing: 'Roofing',
-  electrical: 'Electrical',
-  hvac: 'HVAC',
-  pest_control: 'Pest',
-  handyman: 'Handyman',
-  painting: 'Painting',
-};
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  plumbing_drainage: Droplet,
-  gutters_drainage: CloudRain,
-  landscaping: Trees,
-  roofing: Home,
-  electrical: Bolt,
-  hvac: Wind,
-  pest_control: Bug,
-  handyman: Wrench,
-  painting: Paintbrush,
-};
 
 const SYSTEM_ICONS: Record<SystemType, LucideIcon> = {
   water_heater: Droplet,
@@ -62,32 +39,89 @@ const SYSTEM_ICONS: Record<SystemType, LucideIcon> = {
   roof_invoice: Home,
 };
 
+type SeasonalTask = {
+  id: string;
+  title: string;
+  when: string;
+  why: string;
+  category: string;
+  icon: LucideIcon;
+};
+
+const SEASONAL_TASKS: SeasonalTask[] = [
+  {
+    id: 'gutter-clean',
+    title: 'Gutter cleaning',
+    when: 'Before fall rains',
+    why: 'Clogged gutters back water up at the foundation — the #1 cause of basement leaks.',
+    category: 'gutters_drainage',
+    icon: CloudRain,
+  },
+  {
+    id: 'hvac-filter',
+    title: 'HVAC filter swap',
+    when: 'Quarterly',
+    why: 'A clogged filter cuts efficiency ~15% and shortens the unit\'s life.',
+    category: 'hvac',
+    icon: Wind,
+  },
+  {
+    id: 'water-heater-flush',
+    title: 'Water heater flush',
+    when: 'Annual',
+    why: 'Sediment hardens at the bottom, kills capacity, and rumbles when the burner fires.',
+    category: 'plumbing_drainage',
+    icon: Droplet,
+  },
+  {
+    id: 'roof-check',
+    title: 'Roof inspection',
+    when: 'Annual',
+    why: 'Catch a slipped shingle or cracked flashing before a leak finds your ceiling.',
+    category: 'roofing',
+    icon: Home,
+  },
+  {
+    id: 'sump-pump',
+    title: 'Sump pump test',
+    when: 'Before rainy season',
+    why: 'Pour a bucket in. If it doesn\'t pump out, you find out now — not at 3 a.m.',
+    category: 'plumbing_drainage',
+    icon: Droplet,
+  },
+];
+
+// ─── Tab definitions ─────────────────────────────────────────────────────────
+
+type TabId = 'systems' | 'documents' | 'seasonal';
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'seasonal', label: 'Seasonal' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'systems', label: 'Systems' },
+];
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MyHomePage() {
   const { data: session, isPending: sessionLoading } = useSession();
   const [systems, setSystems] = useState<SystemRecord[]>([]);
   const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
+  const [activeTab, setActiveTab] = useState<TabId>('seasonal');
   const [migrationStatus, setMigrationStatus] = useState<
     'idle' | 'migrating' | 'done' | 'failed'
   >('idle');
 
-  // Refresh from whichever store is active for the current user.
   useEffect(() => {
     let cancelled = false;
     async function refresh() {
       if (session?.user) {
-        // Signed in — pull from Aurora. If a localStorage record exists, migrate
-        // it first on the very first load after sign-in, then re-fetch.
         const local = loadHomeRecord();
         const hasLocal = local.briefs.length > 0 || local.systems.length > 0;
         if (hasLocal && migrationStatus === 'idle') {
           setMigrationStatus('migrating');
           const result = await migrateLocalToRemote();
           if (cancelled) return;
-          // CRITICAL: only clear localStorage when the server confirmed it
-          // saved the rows. If migration failed (DB tables missing, network
-          // error, anything), keep local data intact so the user doesn't
-          // lose their record — they'll see it on next visit too.
           if (result !== null) {
             try {
               window.localStorage.removeItem('odosan:home-record');
@@ -100,9 +134,6 @@ export default function MyHomePage() {
         const remote = await fetchRemoteRecord();
         if (cancelled) return;
         if (remote) {
-          // If the server has data, show it. If the server has nothing but
-          // local still does (because migration failed), show the local data
-          // as a fallback — user's record is never invisible.
           if (remote.briefs.length === 0 && remote.systems.length === 0) {
             const local = loadHomeRecord();
             setSystems(local.systems);
@@ -112,7 +143,6 @@ export default function MyHomePage() {
             setBriefs(remote.briefs);
           }
         } else {
-          // Remote fetch failed entirely — fall back to localStorage.
           const local = loadHomeRecord();
           setSystems(local.systems);
           setBriefs(local.briefs);
@@ -125,9 +155,7 @@ export default function MyHomePage() {
       }
     }
     void refresh();
-    function onFocus() {
-      void refresh();
-    }
+    function onFocus() { void refresh(); }
     window.addEventListener('focus', onFocus);
     return () => {
       cancelled = true;
@@ -192,43 +220,47 @@ export default function MyHomePage() {
         />
       )}
 
-      <SeasonalCard />
+      {/* ── Tab chips ── */}
+      <div
+        className="mt-6 flex gap-2 overflow-x-auto pb-0.5"
+        role="tablist"
+        aria-label="My home sections"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {TABS.map((tab) => {
+          const active = tab.id === activeTab;
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={active}
+              aria-controls={`panel-${tab.id}`}
+              id={`tab-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+                active
+                  ? 'border-od-ink bg-od-ink text-od-bg'
+                  : 'border-od-border bg-white text-od-navy hover:border-od-ink/30 hover:bg-od-cream'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-      <HomeDocumentsCard />
-
-      <section className="mt-8" aria-labelledby="saved-diagnoses-heading">
-        <SectionHeader id="saved-diagnoses-heading" title="Saved diagnoses" size="h2" className="mb-1" />
-        {briefs.length === 0 ? (
-          <EmptyState
-            heading="Nothing saved yet"
-            body="Diagnose your first problem and tap 'Save to My home' to start a record."
-            cta={{ href: '/diagnose', label: 'Diagnose a problem' }}
-          />
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {briefs.map((brief) => (
-              <BriefCard key={brief.id} brief={brief} />
-            ))}
-          </ul>
+      {/* ── Panels ── */}
+      <div className="mt-5">
+        {activeTab === 'systems' && (
+          <SystemsPanel systems={systems} />
         )}
-      </section>
-
-      <section className="mt-10" aria-labelledby="scanned-systems-heading">
-        <SectionHeader id="scanned-systems-heading" title="Scanned systems" size="h2" className="mb-1" />
-        {systems.length === 0 ? (
-          <EmptyState
-            heading="No systems scanned yet"
-            body="When you DIY, scanning your water heater, HVAC, or panel adds it here."
-            cta={{ href: '/my-home/document', label: 'Scan a system' }}
-          />
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {systems.map((system) => (
-              <SystemCard key={system.id} system={system} />
-            ))}
-          </ul>
+        {activeTab === 'documents' && (
+          <DocumentsPanel />
         )}
-      </section>
+        {activeTab === 'seasonal' && (
+          <SeasonalPanel />
+        )}
+      </div>
 
       <InfoBanner
         tone="neutral"
@@ -240,209 +272,61 @@ export default function MyHomePage() {
   );
 }
 
+// ─── Diagnoses panel ─────────────────────────────────────────────────────────
 
+// ─── Systems panel ────────────────────────────────────────────────────────────
 
-function BriefCard({ brief }: { brief: DiagnosisBrief }) {
-  const savedDate = new Date(brief.saved_at);
-  const Icon = CATEGORY_ICONS[brief.category] ?? Wrench;
+function SystemsPanel({ systems }: { systems: SystemRecord[] }) {
+  if (systems.length === 0) {
+    return (
+      <EmptyState
+        heading="No systems scanned yet"
+        body="When you DIY, scanning your water heater, HVAC, or panel adds it here."
+        cta={{ href: '/my-home/document', label: 'Scan a system' }}
+      />
+    );
+  }
   return (
-    <li>
-      <Card className="flex gap-3">
-        <div
-          aria-hidden
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip tone={severityTone(brief.severity)}>
-              {brief.severity.toUpperCase()}
-            </Chip>
-            <Chip tone="neutral">
-              {CATEGORY_LABELS[brief.category] ?? brief.category}
-            </Chip>
-            <Chip tone={brief.diyOrPro === 'diy' ? 'leaf' : 'neutral'}>
-              {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
-            </Chip>
-            <span className="ml-auto text-[12px] text-od-subtle">
-              {savedDate.toLocaleDateString()}
-            </span>
-          </div>
-          <p
-            className="mt-2 text-[15px] font-semibold text-od-navy"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {brief.issue}
-          </p>
-          <p className="mt-1 line-clamp-2 text-[13px] leading-[1.5] text-od-muted">
-            {brief.scopeOfWork}
-          </p>
-          <p className="mt-2 text-[12px] text-od-muted">
-            Fair range:{' '}
-            <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
-          </p>
-        </div>
-      </Card>
-    </li>
+    <ul className="grid grid-cols-3 gap-3">
+      {systems.map((system) => (
+        <SystemTile key={system.id} system={system} />
+      ))}
+    </ul>
   );
 }
 
-function SystemCard({ system }: { system: SystemRecord }) {
+function SystemTile({ system }: { system: SystemRecord }) {
   const Icon = SYSTEM_ICONS[system.system_type] ?? Hammer;
   return (
-    <li>
-      <Card className="flex gap-3">
-        <div
-          aria-hidden
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
+    <li className="flex flex-col overflow-hidden rounded-2xl border border-od-border bg-white">
+      {/* Fixed-height visual area */}
+      <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft">
+        <Icon className="h-8 w-8 text-od-primary" aria-hidden="true" />
+      </div>
+      {/* Meta */}
+      <div className="flex flex-1 flex-col gap-1 p-2">
+        <p
+          className="line-clamp-2 text-[12px] font-semibold leading-[1.3] text-od-navy"
+          style={{ fontFamily: 'var(--font-display)' }}
         >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p
-              className="text-[15px] font-semibold text-od-navy"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {SYSTEM_LABELS[system.system_type]}
-            </p>
-            <span className="text-[12px] text-od-subtle">
-              Scanned {new Date(system.documented_at).toLocaleDateString()}
-            </span>
-          </div>
-          <p className="mt-1 text-[13px] text-od-body">
-            {system.make ?? 'Unknown brand'}
-            {system.capacity ? ` · ${system.capacity}` : ''}
+          {SYSTEM_LABELS[system.system_type]}
+        </p>
+        {system.estimated_age_years !== null && (
+          <p className="text-[10px] text-od-muted">
+            ~{system.estimated_age_years}y old
           </p>
-          {system.estimated_age_years !== null && (
-            <p className="mt-1 text-[12px] text-od-muted">
-              ~{system.estimated_age_years} years old
-              {system.expected_lifespan_years
-                ? ` · ~${system.expected_lifespan_years}y typical lifespan`
-                : ''}
-            </p>
-          )}
-          {system.recall_or_safety_flag && (
-            <Chip tone="urgent" className="mt-2">
-              {system.recall_or_safety_flag}
-            </Chip>
-          )}
-        </div>
-      </Card>
+        )}
+        {system.recall_or_safety_flag && (
+          <Chip tone="urgent" className="mt-auto self-start">
+            Recall
+          </Chip>
+        )}
+      </div>
     </li>
   );
 }
 
-// ─── Seasonal maintenance card ──────────────────────────────────────────
-// Static top-5 list. Each item deep-links to /diagnose with category
-// pre-filled so a tap → photo → AI plan flow is one tap away.
-
-type SeasonalTask = {
-  id: string;
-  title: string;
-  when: string;
-  why: string;
-  category: string;
-  icon: LucideIcon;
-};
-
-const SEASONAL_TASKS: SeasonalTask[] = [
-  {
-    id: 'gutter-clean',
-    title: 'Gutter cleaning',
-    when: 'Before fall rains',
-    why: 'Clogged gutters back water up at the foundation — the #1 cause of basement leaks.',
-    category: 'gutters_drainage',
-    icon: CloudRain,
-  },
-  {
-    id: 'hvac-filter',
-    title: 'HVAC filter swap',
-    when: 'Quarterly · before heating season',
-    why: 'A clogged filter cuts efficiency ~15% and shortens the unit’s life.',
-    category: 'hvac',
-    icon: Wind,
-  },
-  {
-    id: 'water-heater-flush',
-    title: 'Water heater flush',
-    when: 'Annual',
-    why: 'Sediment hardens at the bottom, kills capacity, and rumbles when the burner fires.',
-    category: 'plumbing_drainage',
-    icon: Droplet,
-  },
-  {
-    id: 'roof-check',
-    title: 'Roof inspection',
-    when: 'Annual · before rainy season',
-    why: 'Catch a slipped shingle or cracked flashing before a leak finds your ceiling.',
-    category: 'roofing',
-    icon: Home,
-  },
-  {
-    id: 'sump-pump',
-    title: 'Sump pump test',
-    when: 'Before rainy season',
-    why: 'Pour a bucket in. If it doesn’t pump out, you find out now — not at 3 a.m.',
-    category: 'plumbing_drainage',
-    icon: Droplet,
-  },
-];
-
-function SeasonalCard() {
-  return (
-    <section className="mt-8" aria-labelledby="seasonal-heading">
-      <SectionHeader
-        id="seasonal-heading"
-        title="Seasonal maintenance"
-        subtitle="Top 5 things first-time homeowners forget. Tap any to diagnose with a photo."
-        size="h2"
-        className="mb-3"
-      />
-      <ul className="space-y-2.5">
-        {SEASONAL_TASKS.map((task) => {
-          const Icon = task.icon;
-          return (
-            <li key={task.id}>
-              <Card className="flex gap-3">
-                <div
-                  aria-hidden
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-od-primary-soft text-od-primary"
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p
-                      className="text-[15px] font-semibold text-od-navy"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      {task.title}
-                    </p>
-                    <span className="text-[12px] text-od-subtle">{task.when}</span>
-                  </div>
-                  <p className="mt-1 text-[13px] leading-[1.5] text-od-muted">{task.why}</p>
-                  <a
-                    href={`/diagnose?category=${task.category}`}
-                    className="mt-2 inline-flex items-center text-[13px] font-semibold text-od-primary hover:text-od-leaf"
-                  >
-                    Diagnose with a photo →
-                  </a>
-                </div>
-              </Card>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-// ─── Home documents (photo upload) ──────────────────────────────────────
-// Uploads to S3 via /api/home-documents. Thumbnail is generated client-side
-// (resized data URL) and stored in localStorage alongside the S3 key, so
-// thumbs survive reload even though the S3 bucket is private.
+// ─── Documents panel ─────────────────────────────────────────────────────────
 
 type HomeDocument = {
   id: string;
@@ -450,7 +334,7 @@ type HomeDocument = {
   bucket: string;
   filename: string;
   contentType: string;
-  thumbnail: string; // resized data URL, ~256px
+  thumbnail: string;
   uploadedAt: string;
 };
 
@@ -492,10 +376,11 @@ async function generateThumbnail(file: File, maxDim = 256): Promise<string> {
   });
 }
 
-function HomeDocumentsCard() {
+function DocumentsPanel() {
   const [docs, setDocs] = useState<HomeDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDocs(loadDocuments());
@@ -508,10 +393,7 @@ function HomeDocumentsCard() {
     try {
       const newDocs: HomeDocument[] = [];
       for (const file of Array.from(files)) {
-        // Only handle images for now — disclosure PDFs are a future pass.
-        if (!file.type.startsWith('image/')) {
-          continue;
-        }
+        if (!file.type.startsWith('image/')) continue;
         const thumbnail = await generateThumbnail(file);
         const formData = new FormData();
         formData.append('photo', file);
@@ -551,71 +433,113 @@ function HomeDocumentsCard() {
   }
 
   return (
-    <section className="mt-8" aria-labelledby="home-docs-heading">
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <SectionHeader id="home-docs-heading" title="Home documents" size="h2" />
-        <span className="text-[12px] text-od-subtle">Stored privately</span>
-      </div>
-      <p className="mt-1 text-[13px] leading-[1.5] text-od-muted">
-        Upload water heater photos, panel labels, receipts — anything you want your home to
-        remember.
+    <div>
+      <p className="mb-3 text-[13px] leading-[1.5] text-od-muted">
+        Water heater photos, panel labels, receipts — anything you want your home to remember.{' '}
+        <span className="text-od-subtle">Stored privately.</span>
       </p>
 
-      <div className="mt-3 rounded-[18px] border border-dashed border-od-primary/40 bg-od-primary-soft/40 p-4 text-center">
-        <label className="od-btn-primary cursor-pointer">
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
-            disabled={uploading}
-          />
-          {uploading ? 'Uploading…' : 'Upload photo'}
-        </label>
-        <p className="mt-2 text-[12px] text-od-muted">
-          JPEG/PNG. Stored to Amazon S3. Thumbnail kept on this device.
+      {error && (
+        <p className="mb-3 rounded-xl bg-od-red-soft px-3 py-2 text-[12px] font-semibold text-od-red">
+          {error}
         </p>
-        {error && (
-          <p className="mt-2 rounded-md bg-od-red-soft px-2 py-1 text-[12px] font-semibold text-od-red">
-            {error}
-          </p>
-        )}
-      </div>
-
-      {docs.length > 0 && (
-        <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {docs.map((doc) => (
-            <li
-              key={doc.id}
-              className="group relative overflow-hidden rounded-xl border border-od-border bg-white"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={doc.thumbnail}
-                alt={doc.filename}
-                className="aspect-square w-full object-cover"
-              />
-              <div className="px-2 py-1.5">
-                <p className="line-clamp-1 text-[11px] font-medium text-od-navy">
-                  {doc.filename}
-                </p>
-                <p className="text-[10px] text-od-subtle">
-                  {new Date(doc.uploadedAt).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRemove(doc.id)}
-                aria-label={`Remove ${doc.filename}`}
-                className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-od-red opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
       )}
-    </section>
+
+      <ul className="grid grid-cols-3 gap-3">
+        {/* Upload tile — always first */}
+        <li>
+          <label className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-od-primary/40 bg-od-primary-soft/30 transition-colors hover:bg-od-primary-soft/50">
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+              disabled={uploading}
+            />
+            {uploading ? (
+              <span className="text-[11px] font-semibold text-od-primary">Uploading…</span>
+            ) : (
+              <>
+                <Camera className="h-7 w-7 text-od-primary" aria-hidden="true" />
+                <span className="mt-1.5 text-center text-[11px] font-semibold leading-tight text-od-primary">
+                  Add photo
+                </span>
+              </>
+            )}
+          </label>
+        </li>
+
+        {/* Uploaded doc tiles */}
+        {docs.map((doc) => (
+          <li key={doc.id} className="group relative overflow-hidden rounded-2xl border border-od-border bg-white">
+            {/* Fixed square image */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={doc.thumbnail}
+              alt={doc.filename}
+              className="aspect-square w-full object-cover"
+            />
+            {/* Label strip */}
+            <div className="px-2 py-1.5">
+              <p className="line-clamp-1 text-[11px] font-medium text-od-navy">{doc.filename}</p>
+              <p className="text-[10px] text-od-subtle">
+                {new Date(doc.uploadedAt).toLocaleDateString()}
+              </p>
+            </div>
+            {/* Remove button */}
+            <button
+              type="button"
+              onClick={() => handleRemove(doc.id)}
+              aria-label={`Remove ${doc.filename}`}
+              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-[10px] font-bold text-od-red opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+            >
+              ✕
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ─── Seasonal panel ───────────────────────────────────────────────────────────
+
+function SeasonalPanel() {
+  return (
+    <div>
+      <p className="mb-3 text-[13px] leading-[1.5] text-od-muted">
+        Top 5 things first-time homeowners forget. Tap any to diagnose with a photo.
+      </p>
+      <ul className="grid grid-cols-3 gap-3">
+        {SEASONAL_TASKS.map((task) => {
+          const Icon = task.icon;
+          return (
+            <li key={task.id}>
+              <a
+                href={`/diagnose?category=${task.category}`}
+                className="flex flex-col overflow-hidden rounded-2xl border border-od-border bg-white transition-colors hover:border-od-primary/40"
+              >
+                {/* Visual area */}
+                <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft">
+                  <Icon className="h-8 w-8 text-od-primary" aria-hidden="true" />
+                </div>
+                {/* Meta */}
+                <div className="flex flex-1 flex-col gap-0.5 p-2">
+                  <p
+                    className="line-clamp-2 text-[12px] font-semibold leading-[1.3] text-od-navy"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {task.title}
+                  </p>
+                  <p className="text-[10px] text-od-subtle">{task.when}</p>
+                </div>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

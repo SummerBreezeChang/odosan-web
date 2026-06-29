@@ -57,14 +57,9 @@ export function SiteHeader() {
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 aria-label="Account menu"
-                className="flex items-center gap-2 rounded-full bg-od-primary-soft px-1.5 py-1 text-sm font-semibold text-od-navy hover:bg-od-primary-soft/80"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[18px] leading-none ring-1 ring-od-border transition-shadow hover:ring-2 hover:ring-od-primary-soft"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[16px] leading-none">
-                  <span aria-hidden="true">{pickEmojiAvatar(user.id || user.email || 'guest')}</span>
-                </span>
-                <span className="hidden max-w-[120px] truncate pr-1 sm:inline">
-                  {user.name?.split(' ')[0] || user.email}
-                </span>
+                <span aria-hidden="true">{pickEmojiAvatar(user.id || user.email || 'guest')}</span>
               </button>
 
               {menuOpen && (

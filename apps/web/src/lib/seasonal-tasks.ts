@@ -74,7 +74,7 @@ export const SEASONAL_TASKS: SeasonalTask[] = [
   {
     id: 'hvac-filter',
     title: 'HVAC filter swap',
-    when: 'Quarterly · before heating season',
+    when: 'Quarterly',
     shortWhy:
       'A clogged filter cuts efficiency ~15% and shortens the unit’s life.',
     category: 'hvac',
@@ -132,7 +132,7 @@ export const SEASONAL_TASKS: SeasonalTask[] = [
   {
     id: 'roof-inspection',
     title: 'Roof inspection',
-    when: 'Annual · before rainy season',
+    when: 'Annual',
     shortWhy:
       'Catch a slipped shingle or cracked flashing before a leak finds your ceiling.',
     category: 'roofing',

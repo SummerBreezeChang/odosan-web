@@ -766,24 +766,26 @@ function SeasonalPanel() {
         {SEASONAL_TASKS.map((task) => {
           const Icon = task.icon;
           return (
-            <li key={task.id}>
+            <li key={task.id} className="h-full">
               <a
                 href={`/my-home/seasonal/${task.id}`}
-                className="flex flex-col overflow-hidden rounded-2xl border border-od-border bg-white transition-colors hover:border-od-primary/40"
+                className="flex h-full flex-col overflow-hidden rounded-2xl border border-od-border bg-white transition-colors hover:border-od-primary/40"
               >
                 {/* Visual area */}
                 <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft">
                   <Icon className="h-8 w-8 text-od-primary" aria-hidden="true" />
                 </div>
-                {/* Meta */}
-                <div className="flex flex-1 flex-col gap-0.5 p-2">
+                {/* Meta — flex-1 stretches to fill grid-cell height; justify-center
+                    distributes any extra space evenly above and below the title+when
+                    block so 1-line-title cards don't leave a gap below their text. */}
+                <div className="flex flex-1 flex-col justify-center gap-0.5 p-2">
                   <p
-                    className="line-clamp-2 min-h-[32px] text-[12px] font-semibold leading-[1.3] text-od-navy"
+                    className="line-clamp-2 text-[12px] font-semibold leading-[1.3] text-od-navy"
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
                     {task.title}
                   </p>
-                  <p className="text-[10px] text-od-subtle">{task.when}</p>
+                  <p className="line-clamp-1 text-[10px] text-od-subtle">{task.when}</p>
                 </div>
               </a>
             </li>

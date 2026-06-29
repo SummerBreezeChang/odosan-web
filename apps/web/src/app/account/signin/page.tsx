@@ -12,6 +12,7 @@
  */
 "use client";
 
+import { Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { SocialSignInButtons } from "@/components/SocialSignInButtons";
@@ -22,6 +23,7 @@ function SignInForm() {
 	const callbackUrl = searchParams.get("callbackUrl") || "/";
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -73,13 +75,23 @@ function SignInForm() {
 
 				<label className="flex flex-col gap-[4px] text-[14px]">
 					Password
-					<input
-						type="password"
-						required
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						className="rounded-[8px] border border-gray-300 p-[10px] text-[16px] outline-none focus:border-blue-500"
-					/>
+					<div className="relative">
+						<input
+							type={showPassword ? "text" : "password"}
+							required
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							className="w-full rounded-[8px] border border-gray-300 p-[10px] pr-[44px] text-[16px] outline-none focus:border-blue-500"
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPassword((v) => !v)}
+							aria-label={showPassword ? "Hide password" : "Show password"}
+							className="absolute right-[10px] top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-gray-500 hover:text-gray-800"
+						>
+							{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+						</button>
+					</div>
 				</label>
 
 				{error && (

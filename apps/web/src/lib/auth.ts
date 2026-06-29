@@ -53,6 +53,12 @@ const trustedOrigins = [
   process.env.NEXT_PUBLIC_CREATE_HOST
     ? `https://${process.env.NEXT_PUBLIC_CREATE_HOST}`
     : null,
+  // Always-trusted canonical production URLs. Hardcoded so sign-in never
+  // breaks if the env-var-driven entries above drift (we hit "Invalid
+  // origin" on demo@odosan.tech when none of the env vars matched the
+  // browser's Origin header).
+  'https://www.odosan.tech',
+  'https://odosan.tech',
 ].filter((v): v is string => Boolean(v));
 
 // Social providers self-activate when the platform has injected their OAuth

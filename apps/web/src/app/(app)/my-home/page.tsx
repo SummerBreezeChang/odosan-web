@@ -6,9 +6,11 @@ import {
   Camera,
   CloudRain,
   Droplet,
+  FileText,
   Hammer,
   Home,
   Trees,
+  Upload,
   Wind,
   type LucideIcon,
 } from 'lucide-react';
@@ -92,11 +94,13 @@ const SEASONAL_TASKS: SeasonalTask[] = [
 ];
 
 // ─── Tab definitions ─────────────────────────────────────────────────────────
+// Saved diagnoses live in their own section above these tabs — they are a
+// record of past AI diagnoses, not an "action" the user can take here.
+// The tabs hold the three distinct upload/action surfaces.
 
-type TabId = 'diagnoses' | 'seasonal' | 'documents' | 'systems';
+type TabId = 'seasonal' | 'documents' | 'systems';
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'diagnoses', label: 'Diagnoses' },
   { id: 'seasonal', label: 'Seasonal' },
   { id: 'documents', label: 'Documents' },
   { id: 'systems', label: 'Systems' },
@@ -142,7 +146,7 @@ export default function MyHomePage() {
   const { data: session, isPending: sessionLoading } = useSession();
   const [systems, setSystems] = useState<SystemRecord[]>([]);
   const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('diagnoses');
+  const [activeTab, setActiveTab] = useState<TabId>('seasonal');
   const [migrationStatus, setMigrationStatus] = useState<
     'idle' | 'migrating' | 'done' | 'failed'
   >('idle');
@@ -255,50 +259,75 @@ export default function MyHomePage() {
         />
       )}
 
-      {/* ── Tab chips ── */}
-      <div
-        className="mt-6 flex gap-2 overflow-x-auto pb-0.5"
-        role="tablist"
-        aria-label="My home sections"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {TABS.map((tab) => {
-          const active = tab.id === activeTab;
-          return (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={active}
-              aria-controls={`panel-${tab.id}`}
-              id={`tab-${tab.id}`}
-              onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-semibold transition-colors ${
-                active
-                  ? 'border-od-ink bg-od-ink text-od-bg'
-                  : 'border-od-border bg-white text-od-navy hover:border-od-ink/30 hover:bg-od-cream'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Saved diagnoses (history section, always visible) ── */}
+      <section aria-labelledby="diagnoses-heading" className="mt-8">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <SectionHeader
+            id="diagnoses-heading"
+            title="Saved diagnoses"
+            subtitle="Everything Odosan has diagnosed for your home, with severity, fair price, and next step."
+            size="h2"
+          />
+          <ButtonLink
+            href="/diagnose"
+            variant="ghost"
+            className="shrink-0 whitespace-nowrap"
+          >
+            Diagnose another
+          </ButtonLink>
+        </div>
+        <DiagnosesPanel briefs={briefs} />
+      </section>
 
-      {/* ── Panels ── */}
-      <div className="mt-5">
-        {activeTab === 'diagnoses' && (
-          <DiagnosesPanel briefs={briefs} />
-        )}
-        {activeTab === 'systems' && (
-          <SystemsPanel systems={systems} />
-        )}
-        {activeTab === 'documents' && (
-          <DocumentsPanel />
-        )}
-        {activeTab === 'seasonal' && (
-          <SeasonalPanel />
-        )}
-      </div>
+      {/* ── Take care of your home — three action surfaces ── */}
+      <section aria-labelledby="actions-heading" className="mt-10">
+        <SectionHeader
+          id="actions-heading"
+          title="Take care of your home"
+          subtitle="Seasonal reminders, paperwork to keep with your home, and the systems you've scanned."
+          size="h2"
+          className="mb-4"
+        />
+        <div
+          className="flex gap-2 overflow-x-auto pb-0.5"
+          role="tablist"
+          aria-label="My home actions"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {TABS.map((tab) => {
+            const active = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={active}
+                aria-controls={`panel-${tab.id}`}
+                id={`tab-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={`shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+                  active
+                    ? 'border-od-ink bg-od-ink text-od-bg'
+                    : 'border-od-border bg-white text-od-navy hover:border-od-ink/30 hover:bg-od-cream'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-5">
+          {activeTab === 'systems' && (
+            <SystemsPanel systems={systems} />
+          )}
+          {activeTab === 'documents' && (
+            <DocumentsPanel />
+          )}
+          {activeTab === 'seasonal' && (
+            <SeasonalPanel />
+          )}
+        </div>
+      </section>
 
       <InfoBanner
         tone="neutral"
@@ -492,8 +521,12 @@ function DocumentsPanel() {
     try {
       const newDocs: HomeDocument[] = [];
       for (const file of Array.from(files)) {
-        if (!file.type.startsWith('image/')) continue;
-        const thumbnail = await generateThumbnail(file);
+        const isImage = file.type.startsWith('image/');
+        const isPdf = file.type === 'application/pdf';
+        if (!isImage && !isPdf) continue;
+        // Images get a real thumbnail; PDFs render with a FileText icon
+        // since we can't preview them client-side without a PDF lib.
+        const thumbnail = isImage ? await generateThumbnail(file) : '';
         const formData = new FormData();
         formData.append('photo', file);
         const res = await fetch('/api/home-documents', {
@@ -534,8 +567,9 @@ function DocumentsPanel() {
   return (
     <div>
       <p className="mb-3 text-[13px] leading-[1.5] text-od-muted">
-        Water heater photos, panel labels, receipts — anything you want your home to remember.{' '}
-        <span className="text-od-subtle">Stored privately.</span>
+        <span className="font-semibold text-od-navy">Paperwork for your home</span> — disclosure
+        papers, contractor receipts, appliance warranties, inspection PDFs. Not the same as a
+        diagnosis photo. Stored privately.
       </p>
 
       {error && (
@@ -547,11 +581,11 @@ function DocumentsPanel() {
       <ul className="grid grid-cols-3 gap-3">
         {/* Upload tile — always first */}
         <li>
-          <label className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-od-primary/40 bg-od-primary-soft/30 transition-colors hover:bg-od-primary-soft/50">
+          <label className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-od-primary/40 bg-od-primary-soft/30 px-2 text-center transition-colors hover:bg-od-primary-soft/50">
             <input
               ref={inputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               multiple
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
@@ -561,9 +595,9 @@ function DocumentsPanel() {
               <span className="text-[11px] font-semibold text-od-primary">Uploading…</span>
             ) : (
               <>
-                <Camera className="h-7 w-7 text-od-primary" aria-hidden="true" />
-                <span className="mt-1.5 text-center text-[11px] font-semibold leading-tight text-od-primary">
-                  Add photo
+                <Upload className="h-7 w-7 text-od-primary" aria-hidden="true" />
+                <span className="mt-1.5 text-[11px] font-semibold leading-tight text-od-primary">
+                  Add PDF or photo
                 </span>
               </>
             )}
@@ -572,18 +606,28 @@ function DocumentsPanel() {
 
         {/* Uploaded doc tiles */}
         {docs.map((doc) => (
-          <li key={doc.id} className="group relative overflow-hidden rounded-2xl border border-od-border bg-white">
-            {/* Fixed square image */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={doc.thumbnail}
-              alt={doc.filename}
-              className="aspect-square w-full object-cover"
-            />
+          <li
+            key={doc.id}
+            className="group relative overflow-hidden rounded-2xl border border-od-border bg-white"
+          >
+            {/* Square preview area — image thumb for photos, FileText icon for PDFs */}
+            {doc.contentType === 'application/pdf' || !doc.thumbnail ? (
+              <div className="flex aspect-square w-full items-center justify-center bg-od-cream">
+                <FileText className="h-8 w-8 text-od-primary" aria-hidden="true" />
+              </div>
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={doc.thumbnail}
+                alt={doc.filename}
+                className="aspect-square w-full object-cover"
+              />
+            )}
             {/* Label strip */}
             <div className="px-2 py-1.5">
               <p className="line-clamp-1 text-[11px] font-medium text-od-navy">{doc.filename}</p>
               <p className="text-[10px] text-od-subtle">
+                {doc.contentType === 'application/pdf' ? 'PDF · ' : ''}
                 {new Date(doc.uploadedAt).toLocaleDateString()}
               </p>
             </div>

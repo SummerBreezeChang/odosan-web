@@ -30,14 +30,16 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Missing 'photo' field" }, { status: 400 });
   }
 
-  if (!photo.type.startsWith('image/')) {
+  const isImage = photo.type.startsWith('image/');
+  const isPdf = photo.type === 'application/pdf';
+  if (!isImage && !isPdf) {
     return Response.json(
-      { error: `Unsupported content type: ${photo.type}` },
+      { error: `Unsupported content type: ${photo.type}. Images and PDFs only.` },
       { status: 415 }
     );
   }
 
-  // Soft cap to keep S3 bills predictable for a demo (~8 MB per photo).
+  // Soft cap to keep S3 bills predictable for a demo (~8 MB per file).
   const MAX_BYTES = 8 * 1024 * 1024;
   if (photo.size > MAX_BYTES) {
     return Response.json(

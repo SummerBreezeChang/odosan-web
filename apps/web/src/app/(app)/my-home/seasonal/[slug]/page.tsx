@@ -37,25 +37,28 @@ export default async function SeasonalDetailPage({
   const introParagraphs = task.intro.split('\n\n');
 
   return (
-    <div className="seasonal-shell min-h-screen bg-od-ink/10 pb-12">
-      {/* Sheet/modal styling: a slightly translucent white card with
-          rounded top corners sits over a dimmed (10%-ink) backdrop, so
-          users immediately read it as a layer pushed over /my-home and
-          not as a fresh page swap. Slide-up animation only on the
-          sheet — the backdrop stays static. */}
+    <div className="seasonal-shell pb-12">
+      {/* Sheet treatment: a white card with rounded top corners rises
+          dramatically from the bottom of the viewport. No dimmed
+          backdrop — the cream page bg shows around the rounded
+          corners, which reads as intentional framing rather than a
+          gray void. Pronounced slide-up (80px, 520ms, ease-out-expo)
+          so the page change is obvious. */}
       <style>{`
         @keyframes seasonal-slide-up {
-          from { opacity: 0; transform: translateY(28px); }
+          from { opacity: 0; transform: translateY(80px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .seasonal-sheet { animation: seasonal-slide-up 320ms ease-out both; }
+        .seasonal-sheet {
+          animation: seasonal-slide-up 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
         @media (prefers-reduced-motion: reduce) {
           .seasonal-sheet { animation: none; }
         }
       `}</style>
 
       <div
-        className="seasonal-sheet mx-auto w-full max-w-xl rounded-t-[28px] bg-white/85 px-5 pt-4 backdrop-blur-md shadow-[0_-12px_30px_rgba(27,56,42,0.08)] sm:px-6"
+        className="seasonal-sheet mx-auto w-full max-w-xl rounded-t-[28px] bg-white px-5 pt-4 shadow-[0_-14px_36px_rgba(27,56,42,0.12)] sm:px-6"
         style={{ minHeight: 'calc(100vh - 64px)' }}
       >
         {/* Close (X) — returns to /my-home. Top-right placement so it's

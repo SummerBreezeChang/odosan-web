@@ -137,6 +137,75 @@ export function removeBrief(briefId: string): void {
 }
 
 /**
+ * Seed three sample diagnoses for a populated demo on a fresh device.
+ * Covers the full Open / Planned / Fixed journey with relative dates so
+ * the demo doesn't age (10 days ago, 5 days ago, 1 day ago; the Fixed one
+ * resolved 4 days from diagnosis). Appended to whatever is already saved.
+ */
+export function seedSampleBriefs(): DiagnosisBrief[] {
+  const stored = loadHomeRecord();
+  const now = Date.now();
+  const day = 86_400_000;
+  const samples: DiagnosisBrief[] = [
+    {
+      id: genId(),
+      category: 'plumbing_drainage',
+      neighborhood: 'Berkeley',
+      issue: 'Leak under the kitchen sink',
+      severity: 'urgent',
+      scopeOfWork:
+        'Replace the P-trap and the slip-joint washers; the disposal nut is weeping.',
+      fairPriceRange: '$40–80',
+      diyOrPro: 'diy',
+      explanation:
+        'A weeping P-trap is the most common kitchen leak. Parts cost a few dollars and the fix is hand-tight slip-joint, no glue.',
+      confidence: 88,
+      diyShoppingQuery: 'PVC P-trap kit 1.5 inch',
+      saved_at: new Date(now - 1 * day).toISOString(),
+      status: 'open',
+    },
+    {
+      id: genId(),
+      category: 'hvac',
+      neighborhood: 'Berkeley',
+      issue: 'Furnace filter overdue',
+      severity: 'soon',
+      scopeOfWork:
+        'MERV 11 replacement, 16×25×1. Filter looked dark gray, last swap unknown.',
+      fairPriceRange: '$25–40',
+      diyOrPro: 'diy',
+      explanation:
+        'A clogged filter cuts furnace efficiency 10–15% and stresses the blower. Replace before heating season.',
+      confidence: 92,
+      diyShoppingQuery: 'MERV 11 furnace filter 16x25x1',
+      saved_at: new Date(now - 5 * day).toISOString(),
+      status: 'planned',
+    },
+    {
+      id: genId(),
+      category: 'handyman',
+      neighborhood: 'Berkeley',
+      issue: 'Loose cabinet door hinge',
+      severity: 'monitor',
+      scopeOfWork:
+        'Tighten the European hinge screws; one was stripped — drove a longer screw in.',
+      fairPriceRange: '$0–10',
+      diyOrPro: 'diy',
+      explanation:
+        'Stripped pilot hole — classic. A 5-minute fix with a slightly longer screw or a sliver of toothpick to bite onto.',
+      confidence: 95,
+      diyShoppingQuery: 'European cabinet hinge screw',
+      saved_at: new Date(now - 10 * day).toISOString(),
+      status: 'fixed',
+      fixed_at: new Date(now - 6 * day).toISOString(),
+    },
+  ];
+  const updated = [...samples, ...stored.briefs].slice(0, 20);
+  writeRecord({ ...stored, briefs: updated });
+  return samples;
+}
+
+/**
  * Set the status of a brief. Stamps fixed_at on transition to 'fixed' and
  * clears it on transition away. localStorage-only for now — Aurora sync
  * is Phase 2 once we add a status column + PATCH endpoint.

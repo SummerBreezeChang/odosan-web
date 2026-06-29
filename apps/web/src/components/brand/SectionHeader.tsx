@@ -10,12 +10,14 @@ export function SectionHeader({
   subtitle,
   size = 'h2',
   className = '',
+  id,
 }: {
   eyebrow?: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
   size?: 'display' | 'h1' | 'h2' | 'h3';
   className?: string;
+  id?: string;
 }) {
   const titleSize =
     size === 'display'
@@ -33,6 +35,7 @@ export function SectionHeader({
         </p>
       )}
       <h2
+        id={id}
         className={`${titleSize} font-semibold text-od-ink`}
         style={{ fontFamily: 'var(--font-display)' }}
       >

@@ -161,3 +161,47 @@
         scroll-behavior: smooth;
     }
 }
+
+/* ─── Odosan component layer ─────────────────────────────────────────────────
+   Reusable utility classes for raw HTML or elements that can't use React
+   brand components directly. Keeps tokens flowing even in server-rendered
+   prose, markdown, or third-party embeds.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+    /* Card surface — translucent white, hairline border, two-layer shadow */
+    .od-card {
+        @apply rounded-[18px] border border-od-border bg-white/60 p-[18px];
+        box-shadow: 0 1px 2px rgba(27,56,42,0.05), 0 10px 26px rgba(27,56,42,0.06);
+    }
+
+    /* Text input / select / textarea */
+    .od-input {
+        @apply w-full rounded-xl border border-od-border bg-white px-4 py-3 text-[15px] text-od-navy placeholder:text-od-subtle transition-colors;
+        @apply focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1;
+    }
+
+    /* Primary pill button */
+    .od-btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-full bg-od-ink px-5 py-2.5 text-[14px] font-semibold text-od-bg transition-colors;
+        @apply hover:bg-od-leaf disabled:cursor-not-allowed disabled:opacity-50;
+        @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-od-leaf focus-visible:ring-offset-2 focus-visible:ring-offset-od-bg;
+    }
+
+    /* Secondary (outlined) pill button */
+    .od-btn-secondary {
+        @apply inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] border-od-ink/30 px-5 py-2.5 text-[14px] font-semibold text-od-ink transition-colors;
+        @apply hover:border-od-ink hover:bg-od-ink/[0.03] disabled:cursor-not-allowed disabled:opacity-50;
+        @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-od-leaf focus-visible:ring-offset-2 focus-visible:ring-offset-od-bg;
+    }
+
+    /* Micro-label eyebrow */
+    .od-label {
+        @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-od-muted;
+    }
+
+    /* Section heading in Fraunces */
+    .od-heading {
+        font-family: var(--font-display);
+        @apply font-semibold text-od-ink;
+    }
+}

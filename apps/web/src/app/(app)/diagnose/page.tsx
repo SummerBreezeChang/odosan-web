@@ -23,7 +23,7 @@ import {
 import { saveBrief, syncBriefToServer } from '@/lib/home-record';
 import { useSession } from '@/lib/auth-client';
 import { categoryLabel } from '@/lib/categories';
-import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone } from '@/components/brand';
+import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone, Button, ButtonLink, InputField, InfoBanner } from '@/components/brand';
 
 type Step =
   | 'intake'
@@ -479,101 +479,79 @@ function DiagnoseInner() {
 
   if (step === 'clarify' && firstPass) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
-        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-          <p className="text-xs font-semibold uppercase tracking-wide text-od-primary">
-            Quick clarification
-          </p>
-          <h1
-            className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl"
-            style={{ fontFamily: 'var(--font-display)' }}
+      <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
+        <SectionHeader
+          eyebrow="Quick clarification"
+          title="A few quick questions"
+          subtitle={
+            <>
+              Best guess so far:{' '}
+              <span className="font-semibold text-od-navy">{firstPass.issue}</span>{' '}
+              ({firstPass.confidence ?? 70}% confident). A few short answers will tighten
+              the estimate range.
+            </>
+          }
+          size="h1"
+          className="mb-8"
+        />
+
+        <div className="space-y-6">
+          {firstPass.clarifyingQuestions?.map((q, idx) => (
+            <div key={q.id}>
+              <p className="mb-1.5 text-[13px] font-semibold text-od-navy">
+                {idx + 1}. {q.question}
+              </p>
+              {(q.type === 'yesno' || q.type === 'select') && (
+                <div className="flex flex-wrap gap-2">
+                  {(q.type === 'yesno' ? ['Yes', 'No', 'Unsure'] : q.options ?? []).map(
+                    (opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                        className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-colors ${
+                          answers[q.id] === opt
+                            ? 'border-od-ink bg-od-ink text-od-bg'
+                            : 'border-od-border bg-white text-od-navy hover:bg-od-primary-soft'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+              {q.type === 'text' && (
+                <InputField
+                  id={q.id}
+                  type="text"
+                  value={answers[q.id] ?? ''}
+                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                  placeholder="Type your answer…"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-between">
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              setDiagnosis(firstPass);
+              await loadProvidersFor(firstPass.recommendedCategory);
+              setStep('result');
+            }}
           >
-            A few quick questions
-          </h1>
-          <p className="text-base text-od-muted">
-            Best guess so far: <span className="font-semibold text-od-navy">{firstPass.issue}</span>{' '}
-            ({firstPass.confidence ?? 70}% confident). A few short answers below will tighten the
-            estimate range and let providers quote more accurately.
-          </p>
-
-          <div className="mt-8 space-y-6">
-            {firstPass.clarifyingQuestions?.map((q, idx) => (
-              <div key={q.id}>
-                <label htmlFor={q.id} className="block text-sm font-semibold text-od-navy">
-                  {idx + 1}. {q.question}
-                </label>
-                {q.type === 'yesno' && (
-                  <div className="mt-2 flex gap-2">
-                    {['Yes', 'No', 'Unsure'].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                          answers[q.id] === opt
-                            ? 'border-od-navy bg-od-navy text-white'
-                            : 'border-od-border bg-white text-od-navy hover:bg-od-primary-soft'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {q.type === 'select' && q.options && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {q.options.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                          answers[q.id] === opt
-                            ? 'border-od-navy bg-od-navy text-white'
-                            : 'border-od-border bg-white text-od-navy hover:bg-od-primary-soft'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {q.type === 'text' && (
-                  <input
-                    id={q.id}
-                    type="text"
-                    value={answers[q.id] ?? ''}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    placeholder="Type your answer..."
-                    className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-between">
-            <button
-              type="button"
-              onClick={async () => {
-                // Skip clarification — show the first-pass result as-is
-                setDiagnosis(firstPass);
-                await loadProvidersFor(firstPass.recommendedCategory);
-                setStep('result');
-              }}
-              className="inline-flex items-center justify-center rounded-xl border border-od-navy/15 bg-white px-5 py-3 text-base font-semibold text-od-navy hover:bg-od-primary-soft"
-            >
-              Skip — use first-pass
-            </button>
-            <button
-              type="button"
-              onClick={handleRefine}
-              disabled={!allClarifyingAnswered || isSubmitting}
-              className="inline-flex items-center justify-center rounded-xl bg-od-navy px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-od-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Sharpen diagnosis →
-            </button>
-          </div>
+            Skip — use first-pass
+          </Button>
+          <Button
+            onClick={handleRefine}
+            disabled={!allClarifyingAnswered || isSubmitting}
+            loading={isSubmitting}
+          >
+            Sharpen diagnosis
+          </Button>
         </div>
       </div>
     );
@@ -678,78 +656,75 @@ function DiagnoseInner() {
 
   if (step === 'matches') {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
-        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>
-              Matched providers
-            </h1>
-            <p className="text-sm text-gray-500">
-              We found {providers.length} vetted {providers.length === 1 ? 'pro' : 'pros'} in{' '}
-              {neighborhood}
+      <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
+        <SectionHeader
+          eyebrow="Matched providers"
+          title={`${providers.length} vetted ${providers.length === 1 ? 'pro' : 'pros'} in ${neighborhood}`}
+          size="h1"
+          className="mb-6"
+        />
+
+        {providers.length === 0 ? (
+          <Card className="py-10 text-center">
+            <p className="text-[14px] text-od-muted">
+              No providers found in your area for this category.
             </p>
-          </div>
-
-          {providers.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-              <p className="text-sm text-gray-600 mb-4">
-                No providers found in your area for this category.
-              </p>
-              <button
-                onClick={handleStartOver}
-                className="text-sm font-medium text-od-leaf hover:text-od-leaf"
-              >
-                Start over
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {providers.map((provider) => (
-                <div
-                  key={provider.provider_id}
-                  className="bg-white rounded-xl border border-od-border p-6 hover:border-od-leaf/30 transition-colors"
-                >
-                  <div className="mb-4">
-                    <h3 className="text-base font-semibold text-od-ink mb-1">{provider.name}</h3>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-xs text-od-muted">
-                        {categoryLabel(provider.category)}
-                      </span>
-                      {provider.rating && (
-                        <>
-                          <span className="text-od-border">·</span>
-                          <span className="text-xs text-od-body">★ {provider.rating}</span>
-                        </>
-                      )}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-od-green-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-od-green">
-                        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                        Verified
-                      </span>
-                    </div>
-                  </div>
-
-                  {provider.google_maps_url && (
-                    <a
-                      href={provider.google_maps_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-od-leaf hover:text-od-ink mb-4 inline-block"
-                    >
-                      View on Google Maps →
-                    </a>
-                  )}
-
-                  <button
-                    onClick={() => handleSelectProvider(provider.provider_id)}
-                    className="w-full rounded-full bg-od-ink px-4 py-3 text-sm font-semibold text-od-bg transition-colors hover:bg-od-leaf"
+            <button
+              onClick={handleStartOver}
+              className="mt-4 text-[13px] font-semibold text-od-leaf hover:text-od-ink"
+            >
+              Start over
+            </button>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {providers.map((provider) => (
+              <Card key={provider.provider_id} className="flex flex-col gap-3">
+                <div>
+                  <h3
+                    className="text-[15px] font-semibold text-od-navy"
+                    style={{ fontFamily: 'var(--font-display)' }}
                   >
-                    Connect with {provider.name}
-                  </button>
+                    {provider.name}
+                  </h3>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-[12px] text-od-muted">
+                      {categoryLabel(provider.category)}
+                    </span>
+                    {provider.rating && (
+                      <>
+                        <span className="text-od-border" aria-hidden>·</span>
+                        <span className="text-[12px] text-od-body">★ {provider.rating}</span>
+                      </>
+                    )}
+                    <Chip tone="good">
+                      <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                      Verified
+                    </Chip>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                {provider.google_maps_url && (
+                  <a
+                    href={provider.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[13px] font-semibold text-od-leaf hover:text-od-ink"
+                  >
+                    View on Google Maps →
+                  </a>
+                )}
+
+                <Button
+                  onClick={() => handleSelectProvider(provider.provider_id)}
+                  className="w-full justify-center"
+                >
+                  Connect with {provider.name}
+                </Button>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -757,57 +732,59 @@ function DiagnoseInner() {
   if (step === 'consent') {
     const selectedPro = providers.find((p) => p.provider_id === selectedProvider);
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
-        <div className="rounded-3xl border border-od-border bg-white p-6 shadow-sm sm:p-10">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-od-navy mb-2 tracking-tight sm:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>
-              Ready to connect?
-            </h1>
-            <p className="text-sm text-gray-500">
-              We'll share your contact info with this provider
-            </p>
-          </div>
+      <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
+        <SectionHeader
+          title="Ready to connect?"
+          subtitle="We'll share your contact info with this provider."
+          size="h1"
+          className="mb-6"
+        />
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-4">What happens next</h3>
-            <div className="space-y-3 text-sm text-gray-600">
-              <div className="flex gap-3">
-                <span className="text-gray-400">-</span>
-                <span>
-                  We'll share your name, address, phone, and this diagnosis with {selectedPro?.name}
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-gray-400">-</span>
-                <span>They'll reach out to schedule a visit and provide a quote</span>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-gray-400">-</span>
-                <span>You'll work directly with them to complete the job</span>
-              </div>
-            </div>
-          </div>
+        <Card className="mb-3">
+          <p
+            className="mb-3 text-[14px] font-semibold text-od-navy"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            What happens next
+          </p>
+          <ul className="space-y-2 text-[13px] leading-[1.5] text-od-muted">
+            {[
+              `We'll share your name, address, phone, and this diagnosis with ${selectedPro?.name}.`,
+              "They'll reach out to schedule a visit and provide a quote.",
+              "You'll work directly with them to complete the job.",
+            ].map((item) => (
+              <li key={item} className="flex gap-2">
+                <span className="mt-0.5 text-od-leaf" aria-hidden>–</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
 
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-6">
-            <div className="text-xs font-medium text-gray-500 mb-2">CONNECTING WITH</div>
-            <div className="text-base font-semibold text-gray-900">{selectedPro?.name}</div>
-          </div>
+        <Card className="mb-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-od-muted">
+            Connecting with
+          </p>
+          <p
+            className="mt-1 text-[16px] font-semibold text-od-navy"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {selectedPro?.name}
+          </p>
+        </Card>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep('matches')}
-              className="flex-1 bg-white border border-gray-200 text-gray-900 rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              Go back
-            </button>
-            <button
-              onClick={handleConnect}
-              disabled={isSubmitting}
-              className="flex-1 bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              {isSubmitting ? 'Connecting...' : 'Connect'}
-            </button>
-          </div>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => setStep('matches')} className="flex-1 justify-center">
+            Go back
+          </Button>
+          <Button
+            onClick={handleConnect}
+            disabled={isSubmitting}
+            loading={isSubmitting}
+            className="flex-1 justify-center"
+          >
+            Connect
+          </Button>
         </div>
       </div>
     );
@@ -815,53 +792,45 @@ function DiagnoseInner() {
 
   if (step === 'done') {
     return (
-      <div className="mx-auto w-full max-w-md px-4 sm:px-6 py-16 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">You're all set!</h2>
-          <p className="text-sm text-gray-600 mb-8">
-            The provider will reach out soon to schedule a visit. Check your phone and email.
-          </p>
-          <button
-            onClick={handleStartOver}
-            className="bg-gray-900 text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
-          >
-            Diagnose another issue
-          </button>
+      <div className="mx-auto flex w-full max-w-md flex-col items-center justify-center px-5 py-20 text-center sm:px-6">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-od-green-soft text-od-green">
+          <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
         </div>
+        <SectionHeader
+          title="You're all set!"
+          subtitle="The provider will reach out soon to schedule a visit. Check your phone and email."
+          size="h2"
+          className="mb-8"
+        />
+        <Button onClick={handleStartOver} size="lg">
+          Diagnose another issue
+        </Button>
       </div>
     );
   }
 
   // Intake step
   return (
-    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
-      <header>
-        <h1
-          className="text-3xl font-bold text-od-navy tracking-tight sm:text-4xl"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          What&apos;s going on at home?
-        </h1>
-        <p className="mt-3 text-base text-od-muted">
-          A photo helps a lot. A short note helps more. Both are optional, but they sharpen the
-          diagnosis.
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
+      <SectionHeader
+        eyebrow="Step 1 of 1"
+        title="What's going on at home?"
+        subtitle="A photo helps a lot. A short note helps more. Both are optional, but they sharpen the diagnosis."
+        size="h1"
+        className="mb-8"
+      />
 
-      <div className="mt-8 space-y-6">
+      <div className="space-y-6">
         {/* Photo */}
         <div>
-          <label className="block text-sm font-semibold text-od-navy">Photo</label>
+          <p className="mb-1.5 text-[13px] font-semibold text-od-navy">Photo</p>
           {photoPreview ? (
-            <div className="relative mt-2">
+            <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photoPreview}
                 alt="Preview"
-                className="w-full h-56 object-cover rounded-2xl border border-od-border"
+                className="h-56 w-full rounded-[18px] border border-od-border object-cover"
               />
               <button
                 type="button"
@@ -869,18 +838,18 @@ function DiagnoseInner() {
                   setPhotoFile(null);
                   setPhotoPreview('');
                 }}
-                className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-sm border border-od-border hover:bg-od-cream"
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-od-border bg-white text-[13px] shadow-sm hover:bg-od-cream"
                 aria-label="Remove photo"
               >
                 ✕
               </button>
             </div>
           ) : (
-            <label className="mt-2 flex flex-col items-center justify-center w-full h-44 border-2 border-od-border border-dashed rounded-2xl cursor-pointer bg-white hover:bg-od-cream transition-colors">
-              <div className="flex flex-col items-center justify-center py-4 text-od-primary">
-                <Upload className="w-7 h-7" aria-hidden="true" />
-                <p className="mt-2 text-sm font-semibold text-od-navy">Take or upload a photo</p>
-                <p className="mt-1 text-xs text-od-subtle">↥ Metadata is stripped before upload</p>
+            <label className="flex h-44 w-full cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed border-od-border bg-white transition-colors hover:bg-od-cream">
+              <div className="flex flex-col items-center gap-2 py-4 text-od-primary">
+                <Upload className="h-7 w-7" aria-hidden="true" />
+                <p className="text-[14px] font-semibold text-od-navy">Take or upload a photo</p>
+                <p className="text-[12px] text-od-subtle">Metadata is stripped before upload</p>
               </div>
               <input
                 type="file"
@@ -893,33 +862,26 @@ function DiagnoseInner() {
         </div>
 
         {/* Description */}
-        <div>
-          <label htmlFor="diag-description" className="block text-sm font-semibold text-od-navy">
-            What&apos;s going on? <span className="font-normal text-od-muted">(optional)</span>
-          </label>
-          <input
-            id="diag-description"
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. brown stain on bedroom ceiling"
-            className="mt-2 w-full rounded-xl border border-od-border bg-white px-4 py-3 text-base text-od-navy placeholder:text-od-subtle focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1"
-          />
-        </div>
+        <InputField
+          id="diag-description"
+          label={<>What&apos;s going on? <span className="font-normal text-od-muted">(optional)</span></>}
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g. brown stain on bedroom ceiling"
+        />
 
         {/* Category */}
         <div>
-          <label htmlFor="diag-category" className="block text-sm font-semibold text-od-navy">
+          <label htmlFor="diag-category" className="mb-1.5 block text-[13px] font-semibold text-od-navy">
             Category
           </label>
-          <div className="relative mt-2">
+          <div className="relative">
             <select
               id="diag-category"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className={`w-full appearance-none rounded-xl border border-od-border bg-white pl-4 pr-11 py-3 text-base focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1 ${
-                selectedCategory ? 'text-od-navy' : 'text-od-subtle'
-              }`}
+              className={`od-input appearance-none pl-4 pr-11 ${selectedCategory ? 'text-od-navy' : 'text-od-subtle'}`}
             >
               <option value="">Pick the closest match</option>
               {categories.map((cat) => (
@@ -937,17 +899,15 @@ function DiagnoseInner() {
 
         {/* Neighborhood */}
         <div>
-          <label htmlFor="diag-neighborhood" className="block text-sm font-semibold text-od-navy">
+          <label htmlFor="diag-neighborhood" className="mb-1.5 block text-[13px] font-semibold text-od-navy">
             Neighborhood
           </label>
-          <div className="relative mt-2">
+          <div className="relative">
             <select
               id="diag-neighborhood"
               value={neighborhood}
               onChange={(e) => setNeighborhood(e.target.value)}
-              className={`w-full appearance-none rounded-xl border border-od-border bg-white pl-4 pr-11 py-3 text-base focus:border-od-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-od-primary focus-visible:ring-offset-1 ${
-                neighborhood ? 'text-od-navy' : 'text-od-subtle'
-              }`}
+              className={`od-input appearance-none pl-4 pr-11 ${neighborhood ? 'text-od-navy' : 'text-od-subtle'}`}
             >
               <option value="">Where is this?</option>
               {neighborhoods.map((n) => (
@@ -963,15 +923,16 @@ function DiagnoseInner() {
           </div>
         </div>
 
-        <button
-          type="button"
+        <Button
           onClick={handleDiagnose}
           disabled={!selectedCategory || !neighborhood || isSubmitting}
-          className="w-full inline-flex items-center justify-center rounded-2xl bg-od-navy px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-od-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
+          loading={isSubmitting}
+          size="lg"
+          className="w-full justify-center"
         >
           {isSubmitting ? 'Diagnosing…' : 'Get my diagnosis'}
-        </button>
-        <p className="text-center text-xs text-od-subtle">
+        </Button>
+        <p className="text-center text-[12px] text-od-subtle">
           Odosan is upfront when it&apos;s unsure — and will ask quick questions if it needs to.
         </p>
       </div>
@@ -1059,57 +1020,49 @@ function SaveBriefBanner({
 
   if (savedBriefId) {
     return (
-      <div className="mt-2 rounded-xl border border-od-green/20 bg-od-green-soft p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-        <div>
-          <p className="text-sm font-semibold text-od-green">✓ Saved to My home</p>
-          <p className="mt-0.5 text-xs text-od-green/80">
-            Stored in {destinationShort}.
-          </p>
-        </div>
-        <a
-          href="/my-home"
-          className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
-        >
-          View My home →
-        </a>
-      </div>
+      <InfoBanner
+        tone="good"
+        title="Saved to My home"
+        body={`Stored in ${destinationShort}.`}
+        action={
+          <ButtonLink href="/my-home" size="md">
+            View My home
+          </ButtonLink>
+        }
+      />
     );
   }
 
   return (
-    <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 p-4">
-      <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-od-navy">Save this to My home</p>
-          <p className="mt-1 text-xs text-od-muted">
-            {isPending
-              ? 'Checking where to save…'
-              : isSignedIn
-              ? `Will be saved to ${destinationShort}.`
-              : 'Will be saved to this browser. Anyone who clears the cache loses it.'}
-          </p>
+    <InfoBanner
+      tone="leaf"
+      title="Save this to My home"
+      body={
+        isPending
+          ? 'Checking where to save…'
+          : isSignedIn
+          ? `Will be saved to ${destinationShort}.`
+          : 'Will be saved to this browser. Anyone who clears the cache loses it.'
+      }
+      action={
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button onClick={onSave} disabled={saving} loading={saving} size="md">
+            {saving ? 'Saving…' : 'Save to My home'}
+          </Button>
+          {!isPending && !isSignedIn && (
+            <p className="text-[12px] text-od-muted">
+              <a
+                href="/account/signup?next=/diagnose"
+                className="font-semibold text-od-leaf underline-offset-2 hover:underline"
+              >
+                Create a free account
+              </a>{' '}
+              to keep your record across devices.
+            </p>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
-        >
-          {saving ? 'Saving…' : 'Save to My home'}
-        </button>
-      </div>
-      {!isPending && !isSignedIn && (
-        <p className="mt-2 text-xs text-od-muted">
-          <a
-            href="/account/signup?next=/diagnose"
-            className="font-semibold text-od-leaf underline-offset-2 hover:underline"
-          >
-            Create a free account
-          </a>{' '}
-          to keep your record across devices and share it with a pro later.
-        </p>
-      )}
-    </div>
+      }
+    />
   );
 }
 

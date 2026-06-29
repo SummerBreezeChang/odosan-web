@@ -15105,12 +15105,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:^1.7.0":
-  version: 1.20.0
-  resolution: "lucide-react@npm:1.20.0"
+"lucide-react@npm:^1.22.0":
+  version: 1.22.0
+  resolution: "lucide-react@npm:1.22.0"
   peerDependencies:
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/4bf86add73b29f395fa08be2751cd53939f667c3fa99c54f2f22e422f7a4d83c647c57352de67eea8496884d9c3d45ff1204bad2318304f479b1655609f15632
+  checksum: 10c0/6d7066773c2d5f1a3e8f274d4544d2e6fb133f284c843ce89c041c7d2d6e265e5bed48c057724553405bdc4c943547642ceac25c2b807d5efbb1e75d0127de92
   languageName: node
   linkType: hard
 
@@ -20795,12 +20795,12 @@ __metadata:
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
     jsdom: "npm:^26.1.0"
-    lucide-react: "npm:^1.7.0"
+    lucide-react: "npm:^1.22.0"
     next: "npm:^16.2.6"
     next-themes: "npm:^0.4.6"
     pg: "npm:^8.13.1"
     radix-ui: "npm:^1.4.3"
-    react: "npm:^19.0.4"
+    react: "npm:^19.2.7"
     react-day-picker: "npm:^9.14.0"
     react-dom: "npm:^19.0.4"
     react-hook-form: "npm:^7.72.0"

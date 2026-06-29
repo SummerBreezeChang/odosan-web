@@ -1,4 +1,7 @@
-import Link from 'next/link';
+import { ButtonLink } from '@/components/brand/Button';
+import { Card } from '@/components/brand/Card';
+import { SectionHeader } from '@/components/brand/SectionHeader';
+import { InfoBanner } from '@/components/brand/InfoBanner';
 
 function CameraIcon({ className }: { className?: string }) {
   return (
@@ -6,7 +9,7 @@ function CameraIcon({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -24,7 +27,7 @@ function WrenchIcon({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -41,7 +44,7 @@ function BookmarkIcon({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -58,7 +61,7 @@ function SparkIcon({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -93,74 +96,69 @@ const STEPS = [
 
 export default function Home() {
   return (
-    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
+    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
       {/* Hero */}
       <section>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-od-leaf">
-          Your home&apos;s dad
-        </p>
-        <h1
-          className="mt-3 text-[30px] font-semibold leading-[1.15] text-od-ink sm:text-[36px]"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          Know what&apos;s wrong — and whether you can fix it yourself.
-        </h1>
-        <p className="mt-4 text-[15px] leading-[1.5] text-od-body">
-          Snap a photo. Odosan tells you what it is, what it should cost, and whether it&apos;s a
-          quick DIY or worth calling a pro — so you spend the least to keep your home healthy.
-        </p>
+        <SectionHeader
+          eyebrow="Your home's dad"
+          title="Know what's wrong — and whether you can fix it yourself."
+          subtitle="Snap a photo. Odosan tells you what it is, what it should cost, and whether it's a quick DIY or worth calling a pro — so you spend the least to keep your home healthy."
+          size="display"
+        />
 
-        <Link
-          href="/diagnose"
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-od-ink px-6 py-3.5 text-[15px] font-semibold text-od-bg transition-colors hover:bg-od-leaf"
-        >
-          <CameraIcon className="h-5 w-5" />
-          Diagnose a problem
-        </Link>
-        <p className="mt-3 text-center text-[13px] text-od-subtle">Free. No account needed.</p>
+        <div className="mt-7 flex flex-col gap-3">
+          <ButtonLink href="/diagnose" size="lg" className="w-full justify-center">
+            <CameraIcon className="h-5 w-5" />
+            Diagnose a problem
+          </ButtonLink>
+          <p className="text-center text-[13px] text-od-subtle">
+            Free. No account needed.
+          </p>
+        </div>
       </section>
 
-      {/* How it works — tightened: smaller padding, single-row eyebrow with icon */}
-      <section className="mt-10">
-        <h2
-          className="text-[20px] font-semibold leading-[1.2] text-od-ink"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          How it works
-        </h2>
-        <div className="mt-3 flex flex-col gap-2">
-          {STEPS.map(({ n, title, desc }) => (
-            <div
-              key={n}
-              className="rounded-[18px] border border-od-border bg-white/60 px-4 py-3.5 shadow-[0_1px_2px_rgba(27,56,42,0.05)]"
-            >
-              <div className="flex items-center gap-2 text-od-leaf">
-                <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-od-subtle">
-                  {n}
-                </span>
-              </div>
-              <h3
-                className="mt-1 text-[17px] font-semibold leading-[1.25] text-od-ink"
-                style={{ fontFamily: 'var(--font-display)' }}
+      {/* How it works */}
+      <section className="mt-10" aria-labelledby="how-it-works-heading">
+        <SectionHeader
+          id="how-it-works-heading"
+          title="How it works"
+          size="h2"
+          className="mb-4"
+        />
+        <div className="flex flex-col gap-2.5">
+          {STEPS.map(({ n, title, desc, Icon }) => (
+            <Card key={n} className="flex items-start gap-4 p-4">
+              <div
+                aria-hidden="true"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-od-primary-soft text-od-leaf"
               >
-                {title}
-              </h3>
-              <p className="mt-1 text-[13px] leading-[1.5] text-od-muted">{desc}</p>
-            </div>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-od-subtle">
+                  {n}
+                </p>
+                <h3
+                  className="text-[16px] font-semibold leading-[1.25] text-od-ink"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  {title}
+                </h3>
+                <p className="mt-1 text-[13px] leading-[1.5] text-od-muted">{desc}</p>
+              </div>
+            </Card>
           ))}
         </div>
       </section>
 
       {/* Where it's going */}
-      <section className="mt-4">
-        <div className="flex items-start gap-3 rounded-[18px] border border-od-border bg-white/50 px-4 py-3.5">
-          <SparkIcon className="mt-0.5 h-5 w-5 shrink-0 text-od-leaf" />
-          <p className="text-[13px] leading-[1.5] text-od-muted">
-            <span className="font-semibold text-od-ink">Where it&apos;s going.</span> One day, walk
-            through your home once and Odosan maps everything that needs care — turning maintenance
-            into resale equity.
-          </p>
-        </div>
+      <section className="mt-4" aria-label="Roadmap preview">
+        <InfoBanner
+          tone="neutral"
+          icon={<SparkIcon className="h-5 w-5" />}
+          title="Where it's going."
+          body="One day, walk through your home once and Odosan maps everything that needs care — turning maintenance into resale equity."
+        />
       </section>
     </div>
   );

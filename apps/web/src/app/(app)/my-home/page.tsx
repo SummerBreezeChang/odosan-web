@@ -3,16 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Bolt,
-  Bug,
   Camera,
   CloudRain,
   Droplet,
   Hammer,
   Home,
-  Paintbrush,
   Trees,
   Wind,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import { useSession } from '@/lib/auth-client';
@@ -27,36 +24,13 @@ import {
 } from '@/lib/home-record';
 import { Card } from '@/components/brand/Card';
 import { SectionHeader } from '@/components/brand/SectionHeader';
-import { Chip, severityTone } from '@/components/brand/Chip';
+import { Chip } from '@/components/brand/Chip';
 import { ButtonLink } from '@/components/brand/Button';
 import { EmptyState } from '@/components/brand/EmptyState';
 import { InfoBanner } from '@/components/brand/InfoBanner';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const CATEGORY_LABELS: Record<string, string> = {
-  plumbing_drainage: 'Plumbing',
-  gutters_drainage: 'Gutters',
-  landscaping: 'Landscaping',
-  roofing: 'Roofing',
-  electrical: 'Electrical',
-  hvac: 'HVAC',
-  pest_control: 'Pest',
-  handyman: 'Handyman',
-  painting: 'Painting',
-};
-
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  plumbing_drainage: Droplet,
-  gutters_drainage: CloudRain,
-  landscaping: Trees,
-  roofing: Home,
-  electrical: Bolt,
-  hvac: Wind,
-  pest_control: Bug,
-  handyman: Wrench,
-  painting: Paintbrush,
-};
 
 const SYSTEM_ICONS: Record<SystemType, LucideIcon> = {
   water_heater: Droplet,
@@ -119,13 +93,12 @@ const SEASONAL_TASKS: SeasonalTask[] = [
 
 // ─── Tab definitions ─────────────────────────────────────────────────────────
 
-type TabId = 'diagnoses' | 'systems' | 'documents' | 'seasonal';
+type TabId = 'systems' | 'documents' | 'seasonal';
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'diagnoses', label: 'Diagnoses' },
-  { id: 'systems', label: 'Systems' },
-  { id: 'documents', label: 'Documents' },
   { id: 'seasonal', label: 'Seasonal' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'systems', label: 'Systems' },
 ];
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -134,7 +107,7 @@ export default function MyHomePage() {
   const { data: session, isPending: sessionLoading } = useSession();
   const [systems, setSystems] = useState<SystemRecord[]>([]);
   const [briefs, setBriefs] = useState<DiagnosisBrief[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('diagnoses');
+  const [activeTab, setActiveTab] = useState<TabId>('seasonal');
   const [migrationStatus, setMigrationStatus] = useState<
     'idle' | 'migrating' | 'done' | 'failed'
   >('idle');
@@ -278,9 +251,6 @@ export default function MyHomePage() {
 
       {/* ── Panels ── */}
       <div className="mt-5">
-        {activeTab === 'diagnoses' && (
-          <DiagnosesPanel briefs={briefs} />
-        )}
         {activeTab === 'systems' && (
           <SystemsPanel systems={systems} />
         )}
@@ -303,52 +273,6 @@ export default function MyHomePage() {
 }
 
 // ─── Diagnoses panel ─────────────────────────────────────────────────────────
-
-function DiagnosesPanel({ briefs }: { briefs: DiagnosisBrief[] }) {
-  if (briefs.length === 0) {
-    return (
-      <EmptyState
-        heading="Nothing saved yet"
-        body="Diagnose your first problem and tap 'Save to My home' to start a record."
-        cta={{ href: '/diagnose', label: 'Diagnose a problem' }}
-      />
-    );
-  }
-  return (
-    <ul className="grid grid-cols-3 gap-3">
-      {briefs.map((brief) => (
-        <BriefTile key={brief.id} brief={brief} />
-      ))}
-    </ul>
-  );
-}
-
-function BriefTile({ brief }: { brief: DiagnosisBrief }) {
-  const Icon = CATEGORY_ICONS[brief.category] ?? Wrench;
-  return (
-    <li className="flex flex-col overflow-hidden rounded-2xl border border-od-border bg-white">
-      {/* Fixed-height visual area */}
-      <div className="flex aspect-square w-full items-center justify-center bg-od-primary-soft">
-        <Icon className="h-8 w-8 text-od-primary" aria-hidden="true" />
-      </div>
-      {/* Meta */}
-      <div className="flex flex-1 flex-col gap-1 p-2">
-        <Chip tone={severityTone(brief.severity)} className="self-start">
-          {brief.severity}
-        </Chip>
-        <p
-          className="line-clamp-2 text-[12px] font-semibold leading-[1.3] text-od-navy"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {brief.issue}
-        </p>
-        <p className="mt-auto text-[10px] text-od-subtle">
-          {new Date(brief.saved_at).toLocaleDateString()}
-        </p>
-      </div>
-    </li>
-  );
-}
 
 // ─── Systems panel ────────────────────────────────────────────────────────────
 

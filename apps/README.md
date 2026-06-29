@@ -9,19 +9,19 @@ A privacy-first AI home-maintenance concierge for first-time homeowners. Snap a 
 ## Tech Stack
 
 - **Frontend**: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4
-- **Database**: PostgreSQL (Neon) via `@neondatabase/serverless`
-- **AI**: Google Gemini API for photo diagnosis
-- **Deployment**: Vercel (web), with PWA support
-- **Hackathon requirements**:
-  - H0 "Hack the Zero Stack": PostgreSQL database, Vercel deployment ✓
-  - Build with Gemini XPRIZE: Gemini API integration ✓
+- **Deployment**: **Vercel** (web + API routes), with PWA support
+- **Database**: **Amazon Aurora PostgreSQL Serverless v2** (`us-west-2`, fronted by RDS Proxy, credentials in AWS Secrets Manager)
+- **AI**: **Amazon Bedrock** (Claude Sonnet 4.6, cross-region inference profile) for nameplate OCR + diagnosis reasoning; **Google Gemini 2.5 Pro** for the primary photo-diagnosis call
+- **Object storage**: **Amazon S3** for durable nameplate photo storage
+- **Commerce**: **Amazon Associates** affiliate program for DIY parts recommendations
+- **Hackathon (H0 · "Hack the Zero Stack")**: ✅ Full-stack app · ✅ Vercel deploy · ✅ AWS database (Aurora) · ✅ Track 2 (Monetizable B2B)
 
 ## Quick Start
 
 ### Prerequisites
 
 1. **Gemini API Key** — Get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. **Database** — PostgreSQL database (automatically provisioned via Neon)
+2. **Database** — a PostgreSQL database (connection string in `DATABASE_URL`)
 
 ### Installation
 
@@ -208,18 +208,14 @@ The app is installable as a Progressive Web App:
 - Service worker ready for offline support (future)
 - Works on mobile home screen
 
-## Hackathon Deliverables
+## Hackathon Deliverables — H0 "Hack the Zero Stack" (Vercel v0 + AWS Databases · Jun 29, 2026)
 
-### H0 "Hack the Zero Stack" (Jun 29, 2026)
-- ✅ Full-stack app
-- ✅ PostgreSQL database (Neon)
-- ✅ Vercel deployment
-- ✅ Track 2: Monetizable B2B (provider-pay model)
-
-### Build with Gemini XPRIZE (Aug 17, 2026)
-- ✅ Gemini API integration for diagnosis
-- ⏳ Real revenue from real users (requires launch + provider onboarding)
-- ⏳ Optional: iOS app (future)
+- ✅ Full-stack app, live at [odosan.tech](https://www.odosan.tech)
+- ✅ **Vercel deployment** (Next.js 16 App Router + API routes)
+- ✅ **AWS database**: Amazon Aurora PostgreSQL Serverless v2 (the required AWS database for H0)
+- ✅ **AWS AI**: Amazon Bedrock (Claude Sonnet 4.6) for nameplate OCR + diagnosis, alongside Google Gemini for the primary diagnose call
+- ✅ **AWS storage**: Amazon S3 for nameplate photos
+- ✅ **Track 2: Monetizable B2B** (provider-pay-per-accepted-lead model)
 
 ## Development
 
@@ -239,8 +235,14 @@ yarn start
 
 ## Deployment
 
-The app is deployed on Vercel. Required environment variable:
-- `GEMINI_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
+The web app is deployed on **Vercel** and backed by an **AWS** data + AI stack (Aurora PostgreSQL Serverless v2, Bedrock, S3). Required environment variables on Vercel:
+
+- `GEMINI_API_KEY` — Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- `DATABASE_URL` — Aurora PostgreSQL connection string (sourced from AWS Secrets Manager via RDS Proxy)
+- `AWS_REGION` (e.g. `us-west-2`), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — for Bedrock + S3 SDK calls
+- `BEDROCK_MODEL_ID` — defaults to `us.anthropic.claude-sonnet-4-6-v1:0` (cross-region inference profile)
+- `AWS_S3_BUCKET` — bucket for nameplate photos
+- `AMAZON_CREDENTIAL_ID`, `AMAZON_CREDENTIAL_SECRET`, `AMAZON_ASSOCIATE_TAG` — Amazon Creators API for affiliate-tagged DIY part recommendations
 
 ## Future Enhancements
 
@@ -263,7 +265,7 @@ The app is deployed on Vercel. Required environment variable:
 
 ## License
 
-Proprietary — Hackathon submission for H0 & XPRIZE
+Proprietary — Hackathon submission for **H0 "Hack the Zero Stack"** (Vercel v0 + AWS Databases, Jun 29, 2026)
 
 ---
 

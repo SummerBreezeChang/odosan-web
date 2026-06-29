@@ -2,7 +2,23 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Upload, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import {
+  Upload,
+  ChevronRight,
+  ChevronDown,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Wrench,
+  Droplet,
+  Wind,
+  Plug,
+  Home,
+  Thermometer,
+  ShieldCheck,
+  Box,
+  Star,
+} from 'lucide-react';
 import { saveBrief, syncBriefToServer } from '@/lib/home-record';
 import { categoryLabel } from '@/lib/categories';
 import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone } from '@/components/brand';
@@ -50,12 +66,45 @@ type AmazonProduct = {
   reviewCount: number | null;
 };
 
+type CuratedIconKey =
+  | 'wrench'
+  | 'droplet'
+  | 'wind'
+  | 'plug'
+  | 'home'
+  | 'thermometer'
+  | 'shield'
+  | 'box';
+
+type CuratedProduct = {
+  id: string;
+  title: string;
+  description: string;
+  priceRange: string;
+  searchKeywords: string;
+  category: string;
+  icon: CuratedIconKey;
+  url: string | null;
+};
+
 type ShoppingBucket = {
   query: string;
   products: AmazonProduct[];
+  curatedProducts: CuratedProduct[];
   searchUrl: string | null;
   error: string | null;
 } | null;
+
+const CURATED_ICON_MAP: Record<CuratedIconKey, typeof Wrench> = {
+  wrench: Wrench,
+  droplet: Droplet,
+  wind: Wind,
+  plug: Plug,
+  home: Home,
+  thermometer: Thermometer,
+  shield: ShieldCheck,
+  box: Box,
+};
 
 type Provider = {
   provider_id: string;
@@ -596,40 +645,29 @@ function DiagnoseInner() {
           </p>
         </Card>
 
-        {/* DIY vs Pro fork — two equal FeatureTiles */}
-        <div className="mt-5">
-          <Label>What to do next</Label>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FeatureTile
-              tone="good"
-              recommended={!diyRecommended}
-              onClick={handleViewMatches}
-              eyebrow="Hire a pro"
-              title={
-                providers.length > 0
-                  ? `${providers.length} vetted ${providers.length === 1 ? 'pro' : 'pros'} matched`
-                  : 'Get matched with a local pro'
-              }
-              body="Pre-diagnosed brief sent to vetted pros in your area. Quotes back within 24 hours."
-              cta="View matched providers"
-            />
+        {/* What to do next — DIY first (full-width clay tile with embedded
+            product cards), Pro tile stacked below. */}
+        <div className="mt-5 space-y-3">
+          <FixItYourselfTile
+            title={diagnosis.diyShoppingQuery || 'See the exact parts to buy'}
+            recommended={diyRecommended}
+            loading={shoppingLoading}
+            shopping={shopping}
+          />
 
-            <FeatureTile
-              tone="soon"
-              recommended={diyRecommended}
-              eyebrow="Fix it yourself"
-              title={diagnosis.diyShoppingQuery || 'See the exact parts to buy'}
-              body="Skip the labor cost. The parts most homeowners use for this fix."
-              cta={shoppingLoading ? 'Finding parts…' : 'Find on Amazon'}
-              href={shopping?.searchUrl ?? undefined}
-              external
-            />
-          </div>
-          {/* Compliance disclosure — must stay visible adjacent to the
-              affiliate-linked "Fix it yourself" tile. */}
-          <p className="mt-3 text-right text-[11px] text-od-subtle">
-            As an Amazon Associate, Odosan earns from qualifying purchases.
-          </p>
+          <FeatureTile
+            tone="good"
+            recommended={!diyRecommended}
+            onClick={handleViewMatches}
+            eyebrow="Hire a pro"
+            title={
+              providers.length > 0
+                ? `${providers.length} vetted ${providers.length === 1 ? 'pro' : 'pros'} matched`
+                : 'Get matched with a local pro'
+            }
+            body="Pre-diagnosed brief sent to vetted pros in your area. Quotes back within 24 hours."
+            cta="View matched providers"
+          />
         </div>
 
         {/* Save the brief to the home record */}
@@ -1048,6 +1086,213 @@ function SaveBriefBanner({
       >
         {saving ? 'Saving…' : 'Save to My home'}
       </button>
+    </div>
+  );
+}
+
+// ─── DIY shopping tile ──────────────────────────────────────────────────
+// Partner tag is publicly visible in every outbound Amazon link, so the
+// literal can safely live in client code as a defensive fallback. The
+// server-side API also tags URLs; this helper just guarantees it.
+const AFFILIATE_PARTNER_TAG = 'summerchang0a-20';
+
+function ensureAffiliateTag(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has('tag')) {
+      u.searchParams.set('tag', AFFILIATE_PARTNER_TAG);
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+function ProductImage({ image, alt }: { image: string | null; alt: string }) {
+  if (!image) {
+    return (
+      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[12px] bg-[#E8E2D5]">
+        <span className="text-[11px] text-od-subtle">image</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[12px] bg-white p-1">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={image} alt={alt} className="h-full w-full object-contain" />
+    </div>
+  );
+}
+
+function ProductCardSkeleton() {
+  return (
+    <div className="flex animate-pulse items-center gap-3 rounded-[14px] bg-white/70 p-3">
+      <div className="h-20 w-20 shrink-0 rounded-[12px] bg-[#E8E2D5]" />
+      <div className="flex-1 space-y-2 py-1">
+        <div className="h-3 w-3/4 rounded bg-[#E8E2D5]" />
+        <div className="h-5 w-20 rounded bg-[#E8E2D5]" />
+        <div className="h-3 w-24 rounded bg-[#E8E2D5]" />
+      </div>
+    </div>
+  );
+}
+
+function RealProductCard({
+  product,
+  topPick,
+}: {
+  product: AmazonProduct;
+  topPick: boolean;
+}) {
+  const href = ensureAffiliateTag(product.url) ?? '#';
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="sponsored nofollow noopener"
+      className="flex items-center gap-3 rounded-[14px] bg-white/70 p-3 transition-shadow hover:shadow-[0_4px_12px_rgba(27,56,42,0.06)]"
+    >
+      <ProductImage image={product.image} alt={product.title} />
+      <div className="min-w-0 flex-1">
+        {topPick && (
+          <span className="mb-1.5 inline-block rounded-full bg-od-ink px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            Top pick
+          </span>
+        )}
+        <p className="line-clamp-2 text-[14px] font-medium leading-tight text-od-ink">
+          {product.title}
+        </p>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="text-[17px] font-semibold text-od-ink">
+            {product.price ?? '—'}
+          </span>
+          {typeof product.rating === 'number' && (
+            <span className="inline-flex items-center gap-1 text-[12px] text-od-orange">
+              <Star className="h-3 w-3 fill-current" aria-hidden="true" />{' '}
+              {product.rating.toFixed(1)}
+            </span>
+          )}
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-od-leaf" aria-hidden="true" />
+    </a>
+  );
+}
+
+function CuratedProductCard({
+  product,
+  fallbackSearchUrl,
+  topPick,
+}: {
+  product: CuratedProduct;
+  fallbackSearchUrl: string | null;
+  topPick: boolean;
+}) {
+  const href = ensureAffiliateTag(product.url ?? fallbackSearchUrl) ?? '#';
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="sponsored nofollow noopener"
+      className="flex items-center gap-3 rounded-[14px] bg-white/70 p-3 transition-shadow hover:shadow-[0_4px_12px_rgba(27,56,42,0.06)]"
+    >
+      <ProductImage image={null} alt={product.title} />
+      <div className="min-w-0 flex-1">
+        {topPick && (
+          <span className="mb-1.5 inline-block rounded-full bg-od-ink px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            Top pick
+          </span>
+        )}
+        <p className="line-clamp-2 text-[14px] font-medium leading-tight text-od-ink">
+          {product.title}
+        </p>
+        <p className="mt-0.5 line-clamp-1 text-[12px] leading-snug text-od-muted">
+          {product.description}
+        </p>
+        <div className="mt-1">
+          <span className="text-[17px] font-semibold text-od-ink">
+            {product.priceRange}
+          </span>
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-od-leaf" aria-hidden="true" />
+    </a>
+  );
+}
+
+function FixItYourselfTile({
+  title,
+  recommended,
+  loading,
+  shopping,
+}: {
+  title: string;
+  recommended: boolean;
+  loading: boolean;
+  shopping: ShoppingBucket;
+}) {
+  const hasRealProducts = (shopping?.products.length ?? 0) > 0;
+  const hasCurated = (shopping?.curatedProducts.length ?? 0) > 0;
+  const showProducts = hasRealProducts || hasCurated;
+  const eyebrow = recommended ? 'Recommended · Fix it yourself' : 'Fix it yourself';
+  const searchUrlTagged = ensureAffiliateTag(shopping?.searchUrl);
+
+  return (
+    <div className="rounded-[20px] border border-od-border bg-od-orange-soft p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-od-orange">
+        {eyebrow}
+      </p>
+      <h3
+        className="mt-2 text-[22px] font-semibold leading-[1.2] text-od-ink"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {title}
+      </h3>
+      <p className="mt-2 text-[14px] leading-[1.5] text-od-muted">
+        Skip the labor cost — these are the parts most homeowners use for this fix.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {loading && !showProducts && (
+          <>
+            <ProductCardSkeleton />
+            <ProductCardSkeleton />
+            <ProductCardSkeleton />
+          </>
+        )}
+
+        {!loading && hasRealProducts &&
+          shopping!.products
+            .slice(0, 3)
+            .map((p, i) => <RealProductCard key={p.asin} product={p} topPick={i === 0} />)}
+
+        {!loading && !hasRealProducts && hasCurated &&
+          shopping!.curatedProducts.map((p, i) => (
+            <CuratedProductCard
+              key={p.id}
+              product={p}
+              fallbackSearchUrl={shopping!.searchUrl}
+              topPick={i === 0}
+            />
+          ))}
+
+        {!loading && !showProducts && (
+          <a
+            href={searchUrlTagged ?? '#'}
+            target="_blank"
+            rel="sponsored nofollow noopener"
+            className="flex items-center justify-between rounded-[14px] bg-white/70 px-4 py-3 text-[14px] font-semibold text-od-ink hover:shadow-[0_4px_12px_rgba(27,56,42,0.06)]"
+          >
+            <span>Find on Amazon</span>
+            <ChevronRight className="h-4 w-4 text-od-leaf" aria-hidden="true" />
+          </a>
+        )}
+      </div>
+
+      <p className="mt-4 text-[11px] text-od-subtle">
+        As an Amazon Associate, Odosan earns from qualifying purchases.
+      </p>
     </div>
   );
 }

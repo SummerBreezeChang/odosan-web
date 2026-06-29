@@ -1,10 +1,18 @@
 import { NextRequest } from 'next/server';
 import { searchItems, type AmazonProduct } from '@/lib/amazon-creators';
 import { buildQueries, type Extracted } from '@/lib/amazon-queries';
+import {
+  buildCuratedProductUrl,
+  matchCuratedProducts,
+  type CuratedProduct,
+} from '@/lib/amazon-curated';
+
+type CuratedProductWithUrl = CuratedProduct & { url: string | null };
 
 type Bucket = {
   query: string;
   products: AmazonProduct[];
+  curatedProducts: CuratedProductWithUrl[]; // shown when products is empty (Creators API gated)
   searchUrl: string | null; // affiliate-tagged search fallback (always set when partner tag exists)
   error: string | null;
 };
@@ -76,6 +84,15 @@ function isEligibilityError(msg: string): boolean {
   );
 }
 
+function buildCuratedBucket(query: string): CuratedProductWithUrl[] {
+  const partnerTag = process.env.AMAZON_ASSOCIATE_TAG;
+  const marketplace = process.env.AMAZON_MARKETPLACE || 'www.amazon.com';
+  return matchCuratedProducts(query, 3).map((p) => ({
+    ...p,
+    url: buildCuratedProductUrl(p, partnerTag, marketplace),
+  }));
+}
+
 async function runBucket(
   q: { keywords: string; searchIndex: string } | null
 ): Promise<Bucket | null> {
@@ -83,15 +100,23 @@ async function runBucket(
   const searchUrl = buildAmazonSearchUrl(q.keywords);
   try {
     const products = await searchItems(q.keywords, 5, q.searchIndex);
-    return { query: q.keywords, products, searchUrl, error: null };
+    // Real Amazon products always win; only populate curated when API empty.
+    const curatedProducts = products.length === 0 ? buildCuratedBucket(q.keywords) : [];
+    return { query: q.keywords, products, curatedProducts, searchUrl, error: null };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown';
     // Silent fallback for the expected eligibility-gate case — UI shows
-    // the deep-link CTA instead of an error banner.
+    // the curated product cards + deep-link CTA instead of an error banner.
     if (isEligibilityError(msg)) {
-      return { query: q.keywords, products: [], searchUrl, error: null };
+      return {
+        query: q.keywords,
+        products: [],
+        curatedProducts: buildCuratedBucket(q.keywords),
+        searchUrl,
+        error: null,
+      };
     }
     console.error('[amazon-search bucket failed]', q.keywords, msg);
-    return { query: q.keywords, products: [], searchUrl, error: msg };
+    return { query: q.keywords, products: [], curatedProducts: [], searchUrl, error: msg };
   }
 }

@@ -30,7 +30,6 @@ import {
   type SystemType,
 } from '@/lib/home-record';
 import { Card } from '@/components/brand/Card';
-import { SectionHeader } from '@/components/brand/SectionHeader';
 import { Chip } from '@/components/brand/Chip';
 import { ButtonLink } from '@/components/brand/Button';
 import { EmptyState } from '@/components/brand/EmptyState';
@@ -229,16 +228,12 @@ export default function MyHomePage() {
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
-      <SectionHeader
-        eyebrow={isSignedIn ? 'Your account' : undefined}
-        title="My home"
-        subtitle={
-          isSignedIn
-            ? `Welcome back${session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}. Your maintenance record, saved to your account.`
-            : "A lightweight record of your home's health. It grows every time you diagnose something."
-        }
-        size="h1"
-      />
+      <h1
+        className="text-[34px] font-semibold leading-[1.1] tracking-tight text-od-ink"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        My home
+      </h1>
 
       {!sessionLoading && !isSignedIn && hasAnyData && (
         <InfoBanner
@@ -282,51 +277,47 @@ export default function MyHomePage() {
 
       {/* ── Saved diagnoses (history section, always visible) ── */}
       <section aria-labelledby="diagnoses-heading" className="mt-8">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <SectionHeader
-            id="diagnoses-heading"
-            title="Saved diagnoses"
-            subtitle="Everything Odosan has diagnosed for your home, with severity, fair price, and next step."
-            size="h2"
+        <h2
+          id="diagnoses-heading"
+          className="text-[22px] font-semibold leading-[1.2] text-od-ink"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Saved diagnoses
+        </h2>
+        {isDemoUser && (
+          <button
+            type="button"
+            onClick={() => {
+              clearAllBriefs();
+              seedSampleBriefs();
+              setBriefs(loadHomeRecord().briefs);
+            }}
+            className="mt-1 text-[12px] text-od-muted underline-offset-2 hover:text-od-leaf hover:underline"
+          >
+            Reset demo data
+          </button>
+        )}
+        <div className="mt-3">
+          <DiagnosesPanel
+            briefs={briefs}
+            onStatusChange={(id, status) => {
+              const updated = updateBriefStatus(id, status);
+              if (!updated) return;
+              setBriefs((prev) => prev.map((b) => (b.id === id ? updated : b)));
+            }}
           />
-          <div className="flex shrink-0 items-center gap-2">
-            {isDemoUser && (
-              <button
-                type="button"
-                onClick={() => {
-                  clearAllBriefs();
-                  seedSampleBriefs();
-                  setBriefs(loadHomeRecord().briefs);
-                }}
-                className="whitespace-nowrap text-[12px] text-od-muted underline-offset-2 hover:text-od-leaf hover:underline"
-              >
-                Reset demo data
-              </button>
-            )}
-            <ButtonLink href="/diagnose" variant="ghost" className="whitespace-nowrap">
-              Diagnose another
-            </ButtonLink>
-          </div>
         </div>
-        <DiagnosesPanel
-          briefs={briefs}
-          onStatusChange={(id, status) => {
-            const updated = updateBriefStatus(id, status);
-            if (!updated) return;
-            setBriefs((prev) => prev.map((b) => (b.id === id ? updated : b)));
-          }}
-        />
       </section>
 
       {/* ── Take care of your home — three action surfaces ── */}
       <section aria-labelledby="actions-heading" className="mt-10">
-        <SectionHeader
+        <h2
           id="actions-heading"
-          title="Take care of your home"
-          subtitle="Seasonal reminders, paperwork to keep with your home, and the systems you've scanned."
-          size="h2"
-          className="mb-4"
-        />
+          className="mb-4 text-[22px] font-semibold leading-[1.2] text-od-ink"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Take care of your home
+        </h2>
         <div
           className="flex gap-2 overflow-x-auto pb-0.5"
           role="tablist"

@@ -15,6 +15,7 @@ export type CuratedCategory =
   | 'water_heater'
   | 'hvac'
   | 'plumbing'
+  | 'disposal'
   | 'electrical'
   | 'roofing'
   | 'general';
@@ -96,6 +97,40 @@ const CATALOG: CuratedProduct[] = [
     searchKeywords: 'smart programmable thermostat WiFi',
     category: 'hvac',
     icon: 'thermometer',
+  },
+
+  // ─── Garbage disposal ──────────────────────────────────────────────────
+  // Split out from generic plumbing because a disposal leak has a very
+  // specific failure tree (splash guard / sink flange / motor seal /
+  // mounting) — the demo diagnose preset lands here and the products
+  // need to visually match the splash-guard recommendation, not the
+  // generic plumbing kit.
+  {
+    id: 'disposal-splash-baffle',
+    title: 'InSinkErator splash baffle (Badger / Evolution)',
+    description: 'The black rubber boot at the top of the disposal — universal fit for Badger 5. Twist out, drop in, done in a minute.',
+    priceRange: '$8–15',
+    searchKeywords: 'InSinkErator splash baffle Badger 5 rubber boot',
+    category: 'disposal',
+    icon: 'droplet',
+  },
+  {
+    id: 'disposal-mounting-kit',
+    title: 'Disposal sink-flange mounting kit',
+    description: 'If the disposal wiggles or weeps at the top, the sink flange needs reseating. Includes flange, snap ring, and gasket.',
+    priceRange: '$15–25',
+    searchKeywords: 'garbage disposal sink flange mounting kit gasket',
+    category: 'disposal',
+    icon: 'wrench',
+  },
+  {
+    id: 'disposal-wrenchette',
+    title: 'Disposal wrenchette (1/4″ hex)',
+    description: 'The free fix — unjams a stuck disposal from below without removing it. Most Badger 5 issues start here before they need parts.',
+    priceRange: '$5–10',
+    searchKeywords: 'garbage disposal wrenchette hex jam tool',
+    category: 'disposal',
+    icon: 'box',
   },
 
   // ─── Plumbing ──────────────────────────────────────────────────────────
@@ -190,9 +225,13 @@ const CATALOG: CuratedProduct[] = [
 
 function detectCategory(query: string): CuratedCategory {
   const q = query.toLowerCase();
+  // Disposal must be checked BEFORE plumbing — 'garbage disposal' would
+  // otherwise fall into the plumbing bucket and return P-trap / drain
+  // snake / fill valve, none of which fix a disposal leak.
+  if (/(disposal|splash guard|splash baffle|badger|insinkerator)/.test(q)) return 'disposal';
   if (/(water heater|anode|tankless|t&p|water tank|hot water)/.test(q)) return 'water_heater';
   if (/(hvac|furnace|\bac\b|condenser|thermostat|filter|merv|air handler|heat pump)/.test(q)) return 'hvac';
-  if (/(plumb|p.?trap|drain|faucet|toilet|leak|pipe|fill valve|garbage disposal)/.test(q)) return 'plumbing';
+  if (/(plumb|p.?trap|drain|faucet|toilet|leak|pipe|fill valve)/.test(q)) return 'plumbing';
   if (/(electr|breaker|panel|outlet|surge|gfci|wire|voltage)/.test(q)) return 'electrical';
   if (/(roof|gutter|shingle|flashing|downspout)/.test(q)) return 'roofing';
   return 'general';

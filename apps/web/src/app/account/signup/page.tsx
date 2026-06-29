@@ -14,6 +14,7 @@
  */
 "use client";
 
+import { Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { SocialSignInButtons } from "@/components/SocialSignInButtons";
@@ -24,6 +25,7 @@ function SignUpForm() {
 	const callbackUrl = searchParams.get("callbackUrl") || "/";
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -56,7 +58,7 @@ function SignUpForm() {
 	};
 
 	return (
-		<main className="flex min-h-screen w-full items-center justify-center bg-gray-50 p-[16px]">
+		<main className="flex min-h-dvh w-full items-start justify-center bg-gray-50 px-[16px] pb-[16px] pt-[40px] sm:items-center sm:pt-[16px]">
 			<form
 				onSubmit={(e) => {
 					void onSubmit(e);
@@ -70,6 +72,10 @@ function SignUpForm() {
 					<input
 						type="email"
 						required
+						autoComplete="email"
+						inputMode="email"
+						autoCapitalize="off"
+						spellCheck={false}
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						className="rounded-[8px] border border-gray-300 p-[10px] text-[16px] outline-none focus:border-blue-500"
@@ -78,14 +84,25 @@ function SignUpForm() {
 
 				<label className="flex flex-col gap-[4px] text-[14px]">
 					Password
-					<input
-						type="password"
-						required
-						minLength={8}
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						className="rounded-[8px] border border-gray-300 p-[10px] text-[16px] outline-none focus:border-blue-500"
-					/>
+					<div className="relative">
+						<input
+							type={showPassword ? "text" : "password"}
+							required
+							minLength={8}
+							autoComplete="new-password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							className="w-full rounded-[8px] border border-gray-300 p-[10px] pr-[44px] text-[16px] outline-none focus:border-blue-500"
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPassword((v) => !v)}
+							aria-label={showPassword ? "Hide password" : "Show password"}
+							className="absolute right-[10px] top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-gray-500 hover:text-gray-800"
+						>
+							{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+						</button>
+					</div>
 				</label>
 
 				{error && (

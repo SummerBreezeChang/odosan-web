@@ -140,7 +140,7 @@ export default function MyHomePage() {
   const hasAnyData = briefs.length > 0 || systems.length > 0;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
+    <div className="mx-auto w-full max-w-xl px-5 pb-12 pt-8 sm:px-6">
       <SectionHeader
         eyebrow={isSignedIn ? 'Your account' : undefined}
         title="My home"

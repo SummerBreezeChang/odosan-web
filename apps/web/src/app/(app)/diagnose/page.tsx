@@ -20,7 +20,7 @@ import {
   Box,
   Star,
 } from 'lucide-react';
-import { saveBrief, syncBriefToServer } from '@/lib/home-record';
+import { isDemoAccount, saveBrief, syncBriefToServer } from '@/lib/home-record';
 import { useSession } from '@/lib/auth-client';
 import { categoryLabel } from '@/lib/categories';
 import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone, Button, ButtonLink, InputField, InfoBanner } from '@/components/brand';
@@ -149,6 +149,22 @@ const severityConfig: Record<Severity, { icon: any; color: string; label: string
   monitor: { icon: CheckCircle2, color: 'text-gray-600', label: 'Monitor' },
 };
 
+// Preset diagnosis used for the demo short-circuit. Matches the Badger 5
+// garbage disposal in /public/example-disposal.jpg.
+const DEMO_DIAGNOSIS: DiagnosisResult = {
+  issue: 'Splash guard worn — replace the rubber boot',
+  severity: 'soon',
+  recommendedCategory: 'plumbing_drainage',
+  scopeOfWork:
+    'The black rubber splash guard at the top of the disposal stops sink splatter and is easy to swap. Twist the old one out, drop the new one in — no plumbing tools needed.',
+  fairPriceRange: '$10–25',
+  diyOrPro: 'diy',
+  explanation:
+    "Splash guards are the cheapest and most-forgotten disposal part. When they curl or tear (like this one), water and food spray everywhere when the disposal runs. The Badger 5 takes a standard 3-1/2\" splash guard — universal, $10-ish, takes about a minute to swap.",
+  confidence: 88,
+  diyShoppingQuery: 'garbage disposal splash guard rubber boot',
+};
+
 export default function DiagnosePage() {
   // useSearchParams must be inside a Suspense boundary for Next.js to bail
   // out of static rendering cleanly. The inner component holds all the state
@@ -162,6 +178,7 @@ export default function DiagnosePage() {
 
 function DiagnoseInner() {
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [step, setStep] = useState<Step>('intake');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
@@ -348,6 +365,28 @@ function DiagnoseInner() {
 
     setIsSubmitting(true);
     setStep('diagnosing');
+
+    // Demo short-circuit: when the demo account submits the pre-loaded
+    // example photo (Badger 5 garbage disposal), skip the Gemini call and
+    // return a preset diagnosis after a controlled ~3.5s narrated-wait
+    // beat. Keeps the recording smooth — no real-time AI latency to trim
+    // out of the demo video. Real providers + Amazon search still fire so
+    // the rest of the demo is authentic. Replace the example photo with
+    // your own and the real AI flow runs as usual.
+    const isDemoShortCircuit =
+      isDemoAccount(session?.user?.email) && photoIsExample;
+    if (isDemoShortCircuit) {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 3500));
+        setDiagnosis(DEMO_DIAGNOSIS);
+        await loadProvidersFor(DEMO_DIAGNOSIS.recommendedCategory);
+        setStep('result');
+        void fetchShoppingForBrief(DEMO_DIAGNOSIS);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     try {
       const formData = new FormData();

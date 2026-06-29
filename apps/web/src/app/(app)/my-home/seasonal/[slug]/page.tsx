@@ -1,4 +1,4 @@
-import { ArrowLeft, Camera, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { X, Camera, CheckCircle2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ButtonLink } from '@/components/brand/Button';
@@ -37,29 +37,33 @@ export default async function SeasonalDetailPage({
   const introParagraphs = task.intro.split('\n\n');
 
   return (
-    <div className="seasonal-detail mx-auto w-full max-w-xl px-5 pb-12 pt-6 sm:px-6">
-      {/* Subtle slide-in from right on mount so navigating to the detail
-          feels like a layer pushed on top, not an abrupt page swap. Pure
-          CSS — the `back` browser nav handles the reverse without animation. */}
+    <div className="seasonal-detail mx-auto w-full max-w-xl px-5 pb-12 pt-4 sm:px-6">
+      {/* Slide UP from bottom on mount — reads as a sheet/modal pushed
+          over /my-home. The X close button in the top-right reinforces
+          the "this is a layer I can dismiss" mental model. Pure CSS,
+          honors prefers-reduced-motion. */}
       <style>{`
-        @keyframes seasonal-slide-in {
-          from { opacity: 0; transform: translateX(20px); }
-          to   { opacity: 1; transform: translateX(0); }
+        @keyframes seasonal-slide-up {
+          from { opacity: 0; transform: translateY(28px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        .seasonal-detail { animation: seasonal-slide-in 280ms ease-out both; }
+        .seasonal-detail { animation: seasonal-slide-up 320ms ease-out both; }
         @media (prefers-reduced-motion: reduce) {
           .seasonal-detail { animation: none; }
         }
       `}</style>
 
-      {/* Back link */}
-      <Link
-        href="/my-home"
-        className="inline-flex items-center gap-1 text-[13px] font-semibold text-od-leaf hover:text-od-ink"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        My home
-      </Link>
+      {/* Close (X) — returns to /my-home. Top-right placement so it's
+          tappable with a thumb while reading. */}
+      <div className="flex justify-end">
+        <Link
+          href="/my-home"
+          aria-label="Close"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-od-border bg-white text-od-muted transition-colors hover:bg-od-cream hover:text-od-ink"
+        >
+          <X className="h-5 w-5" aria-hidden="true" />
+        </Link>
+      </div>
 
       {/* Hero */}
       <div className="mt-5 flex items-center gap-4">

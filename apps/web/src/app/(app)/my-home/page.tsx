@@ -349,12 +349,6 @@ export default function MyHomePage() {
 
 // ─── Diagnoses panel ─────────────────────────────────────────────────────────
 
-const STATUS_TONE: Record<BriefStatus, 'urgent' | 'soon' | 'good'> = {
-  open: 'urgent',
-  planned: 'soon',
-  fixed: 'good',
-};
-
 const STATUS_LABEL: Record<BriefStatus, string> = {
   open: 'Open',
   planned: 'Planned',
@@ -467,6 +461,12 @@ function DiagnosesPanel({
   );
 }
 
+// Short date formatter — "Jun 28" instead of "6/28/2026". Saves room in
+// the title-row corner where every pixel counts on mobile.
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function DiagnosisCard({
   brief,
   onStatusChange,
@@ -479,6 +479,13 @@ function DiagnosisCard({
   const status = briefStatus(brief);
   const daysToFix =
     status === 'fixed' && brief.fixed_at ? daysBetween(brief.saved_at, brief.fixed_at) : null;
+  // Adaptive single date — shows when it was Saved by default, swaps to
+  // when it was Fixed (with a small "Nd" time-to-fix bonus) once resolved.
+  const dateLabel =
+    status === 'fixed' && brief.fixed_at
+      ? `Fixed ${shortDate(brief.fixed_at)}${daysToFix !== null ? ` · ${daysToFix}d` : ''}`
+      : `Saved ${shortDate(brief.saved_at)}`;
+  const dateTone = status === 'fixed' ? 'text-od-green' : 'text-od-subtle';
 
   return (
     <li className="flex gap-3 rounded-2xl border border-od-border bg-white p-4">
@@ -489,31 +496,36 @@ function DiagnosisCard({
         <Icon className="h-5 w-5 text-od-primary" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Chip tone={SEVERITY_TONE[brief.severity]}>{brief.severity.toUpperCase()}</Chip>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-od-muted">
-            {categoryLabel}
-          </span>
-          <Chip tone={brief.diyOrPro === 'diy' ? 'leaf' : 'neutral'}>
-            {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
-          </Chip>
-          <Chip tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Chip>
-          <span className="ml-auto text-[11px] text-od-subtle">
-            {new Date(brief.saved_at).toLocaleDateString()}
+        {/* Title row — issue left, single adaptive date right */}
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className="min-w-0 flex-1 text-[15px] font-semibold leading-[1.3] text-od-navy"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {brief.issue}
+          </p>
+          <span className={`shrink-0 whitespace-nowrap text-[11px] font-medium ${dateTone}`}>
+            {dateLabel}
           </span>
         </div>
-        <p
-          className="mt-2 text-[15px] font-semibold leading-[1.3] text-od-navy"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {brief.issue}
+
+        {/* Severity chip + category — one small label row, no wrap clutter */}
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-od-muted">
+          <Chip tone={SEVERITY_TONE[brief.severity]}>{brief.severity}</Chip>
+          <span>{categoryLabel}</span>
         </p>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-[1.45] text-od-muted">
+
+        <p className="mt-2 line-clamp-2 text-[13px] leading-[1.45] text-od-muted">
           {brief.scopeOfWork}
         </p>
+
+        {/* Fair-price + DIY/Pro indicator folded into one line */}
         <p className="mt-2 text-[12px] text-od-muted">
           Fair range:{' '}
           <span className="font-semibold text-od-navy">{brief.fairPriceRange}</span>
+          <span className="ml-2 text-od-subtle">
+            · {brief.diyOrPro === 'diy' ? 'DIY' : 'Pro'}
+          </span>
         </p>
 
         {/* Status toggle — three segmented buttons */}
@@ -543,15 +555,6 @@ function DiagnosisCard({
             );
           })}
         </div>
-
-        {/* Resolution annotation — only when Fixed */}
-        {status === 'fixed' && brief.fixed_at && (
-          <p className="mt-2 text-[12px] text-od-green">
-            ✓ Fixed {new Date(brief.fixed_at).toLocaleDateString()}
-            {daysToFix !== null &&
-              ` · ${daysToFix} ${daysToFix === 1 ? 'day' : 'days'} from diagnosis`}
-          </p>
-        )}
       </div>
     </li>
   );

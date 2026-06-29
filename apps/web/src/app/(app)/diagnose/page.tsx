@@ -20,6 +20,7 @@ import {
   Star,
 } from 'lucide-react';
 import { saveBrief, syncBriefToServer } from '@/lib/home-record';
+import { useSession } from '@/lib/auth-client';
 import { categoryLabel } from '@/lib/categories';
 import { Card, Chip, FeatureTile, Label, SectionHeader, severityTone, confidenceTone } from '@/components/brand';
 
@@ -1054,12 +1055,24 @@ function SaveBriefBanner({
   saving: boolean;
   onSave: () => void;
 }) {
+  const { data: session, isPending } = useSession();
+  const isSignedIn = !!session?.user;
+  const firstName = session?.user?.name?.split(' ')[0];
+  const destinationShort = isSignedIn
+    ? firstName
+      ? `${firstName}'s My home (saved to your account)`
+      : 'your account'
+    : 'this browser';
+
   if (savedBriefId) {
     return (
       <div className="mt-2 rounded-xl border border-od-green/20 bg-od-green-soft p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-        <p className="text-sm font-semibold text-od-green">
-          ✓ Saved to My home.
-        </p>
+        <div>
+          <p className="text-sm font-semibold text-od-green">✓ Saved to My home</p>
+          <p className="mt-0.5 text-xs text-od-green/80">
+            Stored in {destinationShort}.
+          </p>
+        </div>
         <a
           href="/my-home"
           className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 sm:mt-0 sm:w-auto"
@@ -1071,21 +1084,38 @@ function SaveBriefBanner({
   }
 
   return (
-    <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-      <div>
-        <p className="text-sm font-semibold text-od-navy">Save this to My home</p>
-        <p className="mt-1 text-xs text-od-muted">
-          A lightweight record of your home's health. Refer back any time.
-        </p>
+    <div className="mt-2 rounded-xl border border-od-border bg-gray-50/70 p-4">
+      <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-od-navy">Save this to My home</p>
+          <p className="mt-1 text-xs text-od-muted">
+            {isPending
+              ? 'Checking where to save…'
+              : isSignedIn
+              ? `Will be saved to ${destinationShort}.`
+              : 'Will be saved to this browser. Anyone who clears the cache loses it.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
+        >
+          {saving ? 'Saving…' : 'Save to My home'}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-od-navy px-4 py-2 text-sm font-semibold text-white hover:bg-od-navy/90 disabled:opacity-50 sm:mt-0 sm:w-auto"
-      >
-        {saving ? 'Saving…' : 'Save to My home'}
-      </button>
+      {!isPending && !isSignedIn && (
+        <p className="mt-2 text-xs text-od-muted">
+          <a
+            href="/account/signup?next=/diagnose"
+            className="font-semibold text-od-leaf underline-offset-2 hover:underline"
+          >
+            Create a free account
+          </a>{' '}
+          to keep your record across devices and share it with a pro later.
+        </p>
+      )}
     </div>
   );
 }
